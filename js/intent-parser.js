@@ -1,6 +1,6 @@
 /**
  * VoxCAD — Universal Semantic Intent Parser
- * Recognizes vehicles, mechanical parts, everyday objects, and exact metric dimensions.
+ * Understands Anatomy, Fine Art, Vehicles, Mechanical CAD, and Universal Concepts
  */
 
 export class IntentParser {
@@ -76,41 +76,137 @@ export class IntentParser {
       return { type: 'SET_MATERIAL', material: 'titanium', message: 'Appearance set to Titanium Alloy.' };
     }
 
-    // 4. VEHICLES & AUTOMOTIVE
-    // Mercedes / Luxury Sedan / Car
+    // 4. ANATOMY & BIOLOGY
+    // Human Face / Head
+    if (s.includes('face') || s.includes('head') || s.includes('bust') || s.includes('portrait') || s.includes('human face')) {
+      return {
+        type: 'CREATE_FACE',
+        displayTitle: 'Human Face Bust',
+        message: 'Synthesized 3D Sculptural Human Face Bust with brow, nose, cheekbones, and plinth.'
+      };
+    }
+
+    // Human Eye
+    if (s.includes('eye') || s.includes('eyeball') || s.includes('pupil') || s.includes('iris') || s.includes('cornea')) {
+      return {
+        type: 'CREATE_EYE',
+        displayTitle: 'Anatomical Human Eye',
+        message: 'Synthesized Anatomical Human Eye with sclera, corneal lens, and iris aperture.'
+      };
+    }
+
+    // DNA Double Helix
+    if (s.includes('dna') || s.includes('helix') || s.includes('chromosome') || s.includes('gene')) {
+      return {
+        type: 'CREATE_DNA',
+        displayTitle: 'DNA Double Helix',
+        message: 'Synthesized DNA Double Helix with spiraling nucleotide strands and base pair rungs.'
+      };
+    }
+
+    // 5. FINE ART & SCULPTURE
+    // Modern Art / Sculpture
+    if (s.includes('art') || s.includes('sculpture') || s.includes('abstract') || s.includes('statue') || s.includes('monument')) {
+      return {
+        type: 'CREATE_ART_SCULPTURE',
+        displayTitle: 'Modern Art Sculpture',
+        message: 'Synthesized Flowing Modern Art Torus Knot Sculpture on gallery pedestal.'
+      };
+    }
+
+    // Gemstone / Diamond
+    if (s.includes('diamond') || s.includes('gem') || s.includes('crystal') || s.includes('ruby') || s.includes('emerald') || s.includes('sapphire')) {
+      return {
+        type: 'CREATE_GEMSTONE',
+        displayTitle: 'Brilliant-Cut Diamond',
+        message: 'Synthesized Brilliant-Cut Faceted Gemstone on display ring.'
+      };
+    }
+
+    // Crown
+    if (s.includes('crown') || s.includes('tiara') || s.includes('coronet') || s.includes('king') || s.includes('queen')) {
+      return {
+        type: 'CREATE_CROWN',
+        displayTitle: 'Royal Crown',
+        message: 'Synthesized Royal Crown with 6 jewel-studded spire peaks.'
+      };
+    }
+
+    // Guitar / Musical Instrument
+    if (s.includes('guitar') || s.includes('violin') || s.includes('instrument') || s.includes('music')) {
+      return {
+        type: 'CREATE_GUITAR',
+        displayTitle: 'Acoustic Guitar',
+        message: 'Synthesized Acoustic Guitar with body bouts, sound hole, neck, and headstock.'
+      };
+    }
+
+    // Sword / Blade
+    if (s.includes('sword') || s.includes('blade') || s.includes('dagger') || s.includes('weapon')) {
+      return {
+        type: 'CREATE_SWORD',
+        displayTitle: 'Medieval Sword',
+        message: 'Synthesized Medieval Sword with double-edged blade, crossguard, and pommel.'
+      };
+    }
+
+    // Castle / Tower
+    if (s.includes('castle') || s.includes('fortress') || s.includes('keep') || s.includes('fort')) {
+      return {
+        type: 'CREATE_CASTLE',
+        displayTitle: 'Fortress Castle Tower',
+        message: 'Synthesized Medieval Castle Tower with battlement crenellations.'
+      };
+    }
+
+    // Tree / Nature
+    if (s.includes('tree') || s.includes('forest') || s.includes('pine') || s.includes('oak') || s.includes('plant')) {
+      return {
+        type: 'CREATE_TREE',
+        displayTitle: 'Botanical Tree',
+        message: 'Synthesized Botanical Tree with trunk and tiered foliage canopy.'
+      };
+    }
+
+    // 6. VEHICLES & AUTOMOTIVE
+    // Mercedes / Luxury Sedan
     if (s.includes('mercedes') || s.includes('merced') || s.includes('benz') || s.includes('sedan') || (s.includes('car') && !s.includes('hypercar'))) {
       return {
         type: 'CREATE_MERCEDES_CAR',
+        displayTitle: 'Mercedes-Benz Sedan',
         message: 'Synthesized Mercedes-Benz Luxury Sedan with hood star emblem and alloy wheels.'
       };
     }
 
-    // Tire / Wheel / Tiek
+    // Tire / Wheel
     if (s.includes('tire') || s.includes('tiek') || s.includes('tyre') || s.includes('wheel') || s.includes('rim')) {
       const r = this.extractRadius(s) || this.extractFirstNumber(s) || 35;
       return {
         type: 'CREATE_TIRE',
         radius: r,
+        displayTitle: 'Automotive Tire',
         message: `Synthesized Automotive Wheel & Tire with alloy rim and lug nuts.`
       };
     }
 
-    // Hypercar / Supercar
+    // Hypercar
     if (s.includes('hypercar') || s.includes('supercar') || s.includes('race car')) {
       return {
         type: 'CREATE_HYPERCAR',
+        displayTitle: 'Hypercar Chassis',
         message: 'Synthesized Aerodynamic Hypercar Chassis with rear wing.'
       };
     }
 
-    // 5. GEOMETRIC & EVERYDAY OBJECTS
-    // Circle / Disc / Ring
+    // 7. EVERYDAY & INDUSTRIAL
+    // Circle / Disc
     if (s.includes('circle') || s.includes('cirlce') || s.includes('disc') || s.includes('disk') || s.includes('ring')) {
       const d = this.extractDiameter(s) || this.extractFirstNumber(s) || 60;
       return {
         type: 'CREATE_CIRCLE',
         diameter: d,
         thickness: 8,
+        displayTitle: 'Circular Disc',
         message: `Synthesized Circular Disc (Ø${d}mm) with center mount.`
       };
     }
@@ -119,6 +215,7 @@ export class IntentParser {
     if (s.includes('mug') || s.includes('cup') || s.includes('coffee')) {
       return {
         type: 'CREATE_MUG',
+        displayTitle: 'Coffee Mug',
         message: 'Synthesized Ceramic Coffee Mug with looped ergonomic handle.'
       };
     }
@@ -127,6 +224,7 @@ export class IntentParser {
     if (s.includes('chair') || s.includes('seat')) {
       return {
         type: 'CREATE_CHAIR',
+        displayTitle: 'Ergonomic Chair',
         message: 'Synthesized Modern Ergonomic Chair with backrest and 4 legs.'
       };
     }
@@ -135,39 +233,44 @@ export class IntentParser {
     if (s.includes('table') || s.includes('desk')) {
       return {
         type: 'CREATE_TABLE',
+        displayTitle: 'Executive Desk',
         message: 'Synthesized Executive Desk with chamfered slab and tapered legs.'
       };
     }
 
-    // Smartphone / Device
+    // Smartphone
     if (s.includes('phone') || s.includes('mobile') || s.includes('smartphone') || s.includes('tablet')) {
       return {
         type: 'CREATE_SMARTPHONE',
+        displayTitle: 'Smartphone',
         message: 'Synthesized Slim Smartphone with camera module island.'
       };
     }
 
-    // Industrial Bolt / Screw
+    // Industrial Bolt
     if (s.includes('bolt') || s.includes('screw') || s.includes('fastener')) {
       return {
         type: 'CREATE_BOLT',
+        displayTitle: 'Industrial Hex Bolt',
         message: 'Synthesized Industrial Hex Head Bolt with threaded shank.'
       };
     }
 
-    // 6. SCI-FI & AEROSPACE
+    // 8. SCI-FI & AEROSPACE
     // Stealth Drone
     if (s.includes('drone') || s.includes('jet') || s.includes('stealth') || s.includes('aircraft') || s.includes('plane') || s.includes('fighter')) {
       return {
         type: 'CREATE_STEALTH_DRONE',
+        displayTitle: 'Stealth Drone',
         message: 'Synthesized Futuristic Stealth Jet Drone with canted stabilizers.'
       };
     }
 
     // Twisted Tower
-    if (s.includes('tower') || s.includes('skyscraper') || s.includes('twisted') || s.includes('helix') || s.includes('spiral')) {
+    if (s.includes('tower') || s.includes('skyscraper') || s.includes('twisted') || s.includes('spiral')) {
       return {
         type: 'CREATE_TWISTED_TOWER',
+        displayTitle: 'Twisted Tower',
         message: 'Synthesized 18-Story Twisted Helical Architectural Tower.'
       };
     }
@@ -176,14 +279,16 @@ export class IntentParser {
     if (s.includes('reactor') || s.includes('core') || s.includes('gyroscope') || s.includes('gimbal') || s.includes('portal')) {
       return {
         type: 'CREATE_REACTOR_CORE',
+        displayTitle: 'Reactor Core',
         message: 'Synthesized Sci-Fi Reactor Core with gimbal rings.'
       };
     }
 
     // Cyber Helmet
-    if (s.includes('helmet') || s.includes('mask') || s.includes('cyber') || s.includes('headgear')) {
+    if (s.includes('helmet') || s.includes('cyber')) {
       return {
         type: 'CREATE_CYBER_HELMET',
+        displayTitle: 'Cyber Helmet',
         message: 'Synthesized Cybernetic Combat Helmet with visor shield.'
       };
     }
@@ -192,6 +297,7 @@ export class IntentParser {
     if (s.includes('claw') || s.includes('gripper') || s.includes('pincer') || s.includes('robot arm')) {
       return {
         type: 'CREATE_ROBOTIC_CLAW',
+        displayTitle: 'Robotic Claw',
         message: 'Synthesized Robotic Gripper Claw with dual pincers.'
       };
     }
@@ -203,25 +309,28 @@ export class IntentParser {
         type: 'CREATE_GEAR',
         teeth: teeth,
         radius: 38,
+        displayTitle: 'Spur Gear',
         message: `Synthesized ${teeth}-Tooth Spur Gear with shaft keyway.`
       };
     }
 
     // Satellite
-    if (s.includes('satellite') || s.includes('probe') || s.includes('solar') || s.includes('spacecraft')) {
+    if (s.includes('satellite') || s.includes('probe') || s.includes('spacecraft')) {
       return {
         type: 'CREATE_SATELLITE',
+        displayTitle: 'Orbital Satellite',
         message: 'Synthesized Deep-Space Orbital Satellite with solar arrays.'
       };
     }
 
-    // 7. MECHANICAL CAD PRIMITIVES
+    // 9. MECHANICAL CAD PRIMITIVES
     // Mounting Plate with Hole
-    if (s.includes('hole') || s.includes('bore') || s.includes('pocket') || s.includes('plate with hole') || s.includes('mounting plate')) {
+    if (s.includes('hole') || s.includes('bore') || s.includes('pocket') || s.includes('mounting plate')) {
       const dia = this.extractDiameter(s) || 24;
       return {
         type: 'CREATE_PLATE_WITH_HOLE',
         width: 100, depth: 80, height: 15, diameter: dia,
+        displayTitle: 'Mounting Plate',
         message: `Synthesized Machined Mounting Plate with Ø${dia}mm center bore.`
       };
     }
@@ -233,12 +342,14 @@ export class IntentParser {
         return {
           type: 'CREATE_BOX',
           width: dims.w, depth: dims.d, height: dims.h,
+          displayTitle: 'Solid Box',
           message: `Created solid box ${dims.w} × ${dims.d} × ${dims.h} mm.`
         };
       }
       return {
         type: 'CREATE_BOX',
         width: 100, depth: 80, height: 15,
+        displayTitle: 'Solid Plate',
         message: `Created solid plate 100 × 80 × 15 mm.`
       };
     }
@@ -250,6 +361,7 @@ export class IntentParser {
       return {
         type: 'CREATE_CYLINDER',
         diameter: dia, height: h,
+        displayTitle: 'Cylinder',
         message: `Created cylinder Ø${dia}mm × ${h}mm height.`
       };
     }
@@ -260,6 +372,7 @@ export class IntentParser {
       return {
         type: 'CREATE_SPHERE',
         radius: rad,
+        displayTitle: 'Sphere',
         message: `Created sphere radius ${rad}mm.`
       };
     }
@@ -270,14 +383,18 @@ export class IntentParser {
       return {
         type: 'EXTRUDE_FACE',
         distance: dist,
+        displayTitle: 'Extrusion',
         message: `Extruded feature by ${dist}mm.`
       };
     }
 
-    // Universal Dynamic Fallback: If user said "a shoe", "a guitar", "a bottle" -> Create clean solid representation!
+    // 10. TRUE LINGUA FRANCA: Universal Harmonic 3D Manifold for ANY word!
+    // Never fails or rejects any concept: transforms abstract words into artistic mathematical forms!
     return {
-      type: 'CREATE_MERCEDES_CAR',
-      message: `Synthesizing 3D design for "${text}".`
+      type: 'CREATE_UNIVERSAL_MANIFOLD',
+      prompt: text,
+      displayTitle: text.charAt(0).toUpperCase() + text.slice(1),
+      message: `Synthesized bespoke 3D sculptural form for "${text}".`
     };
   }
 

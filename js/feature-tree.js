@@ -1,6 +1,7 @@
 /**
- * VoxCAD — Universal Procedural & Parametric Geometry Library
- * Generates any requested physical or concept object with exact metric bounds.
+ * VoxCAD — Universal Generative 3D Synthesizer
+ * True Lingua Franca: Can model Anatomy (face, eye), Fine Art, Mechanical,
+ * Architectural, Nature, and Universal Mathematical Manifolds for ANY word.
  */
 
 import * as THREE from 'three';
@@ -84,9 +85,6 @@ export class FeatureTree {
     this.evaluateGeometry();
   }
 
-  /**
-   * Main Evaluator: Generates 3D meshes based on feature list
-   */
   evaluateGeometry() {
     if (this.features.length === 0) {
       this.cadEngine.setActiveMesh(null);
@@ -102,83 +100,106 @@ export class FeatureTree {
       let meshOrGroup = null;
 
       switch (feat.type) {
-        // Cars & Vehicles
+        // 1. ANATOMY & BIOLOGY
+        case 'CREATE_FACE':
+          meshOrGroup = this.buildHumanFace();
+          break;
+        case 'CREATE_EYE':
+          meshOrGroup = this.buildHumanEye();
+          break;
+        case 'CREATE_DNA':
+          meshOrGroup = this.buildDNAHelix();
+          break;
+
+        // 2. FINE ART & SCULPTURE
+        case 'CREATE_ART_SCULPTURE':
+          meshOrGroup = this.buildModernArtSculpture();
+          break;
+        case 'CREATE_GEMSTONE':
+          meshOrGroup = this.buildFacetedGemstone();
+          break;
+        case 'CREATE_CROWN':
+          meshOrGroup = this.buildRoyalCrown();
+          break;
+        case 'CREATE_GUITAR':
+          meshOrGroup = this.buildGuitar();
+          break;
+        case 'CREATE_SWORD':
+          meshOrGroup = this.buildSword();
+          break;
+
+        // 3. ARCHITECTURE & NATURE
+        case 'CREATE_CASTLE':
+        case 'CREATE_TOWER':
+          meshOrGroup = this.buildCastleTower();
+          break;
+        case 'CREATE_TREE':
+          meshOrGroup = this.buildTree();
+          break;
+
+        // 4. VEHICLES & AUTOMOTIVE
         case 'CREATE_MERCEDES_CAR':
         case 'CREATE_CAR':
           meshOrGroup = this.buildMercedesCar();
           break;
-
         case 'CREATE_TIRE':
         case 'CREATE_WHEEL':
           meshOrGroup = this.buildAutomotiveTire(feat.radius || 35);
           break;
-
         case 'CREATE_HYPERCAR':
           meshOrGroup = this.buildHypercar();
           break;
 
-        // Everyday & Industrial Objects
+        // 5. EVERYDAY & INDUSTRIAL
         case 'CREATE_CIRCLE':
         case 'CREATE_DISC':
           meshOrGroup = this.buildCircularDisc(feat.diameter || 60, feat.thickness || 8);
           break;
-
         case 'CREATE_MUG':
         case 'CREATE_CUP':
           meshOrGroup = this.buildCoffeeMug();
           break;
-
         case 'CREATE_CHAIR':
           meshOrGroup = this.buildChair();
           break;
-
         case 'CREATE_TABLE':
           meshOrGroup = this.buildTable();
           break;
-
         case 'CREATE_SMARTPHONE':
           meshOrGroup = this.buildSmartphone();
           break;
-
         case 'CREATE_BOLT':
           meshOrGroup = this.buildBolt();
           break;
 
-        // Visionary Concepts
+        // 6. SCI-FI & AEROSPACE
         case 'CREATE_STEALTH_DRONE':
           meshOrGroup = this.buildStealthDrone();
           break;
-
         case 'CREATE_TWISTED_TOWER':
           meshOrGroup = this.buildTwistedTower();
           break;
-
         case 'CREATE_REACTOR_CORE':
           meshOrGroup = this.buildReactorCore();
           break;
-
         case 'CREATE_CYBER_HELMET':
           meshOrGroup = this.buildCyberHelmet();
           break;
-
         case 'CREATE_ROBOTIC_CLAW':
           meshOrGroup = this.buildRoboticClaw();
           break;
-
         case 'CREATE_GEAR':
           meshOrGroup = this.buildGear(feat.teeth || 18, feat.radius || 38);
           break;
-
         case 'CREATE_SATELLITE':
           meshOrGroup = this.buildSatellite();
           break;
 
-        // Mechanical Primitives
+        // 7. MECHANICAL CAD PRIMITIVES
         case 'CREATE_PLATE_WITH_HOLE':
         case 'CUT_HOLE':
           meshOrGroup = this.buildMountingPlate(feat.width || 100, feat.depth || 80, feat.height || 15, feat.diameter || 24);
           break;
-
         case 'CREATE_BOX': {
           const w = feat.width || 100, d = feat.depth || 80, h = feat.height || 15;
           const geo = new THREE.BoxGeometry(w, h, d);
@@ -186,7 +207,6 @@ export class FeatureTree {
           meshOrGroup = new THREE.Mesh(geo, mat);
           break;
         }
-
         case 'CREATE_CYLINDER': {
           const r = (feat.diameter || 32) / 2, h = feat.height || 45;
           const geo = new THREE.CylinderGeometry(r, r, h, 36);
@@ -194,7 +214,6 @@ export class FeatureTree {
           meshOrGroup = new THREE.Mesh(geo, mat);
           break;
         }
-
         case 'CREATE_SPHERE': {
           const r = feat.radius || 25;
           const geo = new THREE.SphereGeometry(r, 32, 24);
@@ -203,13 +222,14 @@ export class FeatureTree {
           break;
         }
 
+        // 8. UNIVERSAL HARMONIC MANIFOLD (For ANY abstract concept or unknown word)
+        case 'CREATE_UNIVERSAL_MANIFOLD':
         default:
-          meshOrGroup = this.buildMercedesCar();
+          meshOrGroup = this.buildUniversalHarmonicManifold(feat.prompt || 'Sculptural Form');
           break;
       }
 
       if (meshOrGroup) {
-        // Apply manual scaling and rotation parameters
         if (feat.scaleX !== undefined) {
           meshOrGroup.scale.set(feat.scaleX || 1, feat.scaleY || 1, feat.scaleZ || 1);
         }
@@ -222,13 +242,13 @@ export class FeatureTree {
 
     this.cadEngine.setActiveMesh(rootGroup);
 
-    // Compute and dispatch exact Metric details to the UI
+    // Compute metrics
     const box = new THREE.Box3().setFromObject(rootGroup);
     const size = box.getSize(new THREE.Vector3());
     const lastFeat = this.features[this.features.length - 1];
 
     this.activeMetrics = {
-      title: (lastFeat.type || 'Object').replace('CREATE_', '').replace(/_/g, ' '),
+      title: (lastFeat.displayTitle || lastFeat.type || 'Object').replace('CREATE_', '').replace(/_/g, ' '),
       length: Math.round(size.x),
       width: Math.round(size.z),
       height: Math.round(size.y),
@@ -244,45 +264,417 @@ export class FeatureTree {
   }
 
   // ==========================================
-  // PROCEDURAL MODELS (CARS, TIRES, SHAPES)
+  // 1. ANATOMICAL & BIOLOGICAL MODELS
   // ==========================================
 
   /**
-   * Mercedes-Benz Executive Luxury Sedan
+   * Sculptural Human Face Bust
    */
+  buildHumanFace() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Cranial Head Core
+    const head = new THREE.Mesh(new THREE.SphereGeometry(26, 24, 20), mat);
+    head.scale.set(0.9, 1.25, 1.0);
+    head.position.set(0, 48, 0);
+    group.add(head);
+
+    // Forehead & Brow Ridge
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(28, 6, 8), mat);
+    brow.position.set(0, 52, 22);
+    group.add(brow);
+
+    // Sculpted Nose
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(5.5, 20, 4), mat);
+    nose.rotation.x = Math.PI / 2 + 0.15;
+    nose.position.set(0, 42, 25);
+    group.add(nose);
+
+    // Left and Right Cheekbones
+    [-1, 1].forEach(dir => {
+      const cheek = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 12), mat);
+      cheek.scale.set(1.4, 0.8, 1.0);
+      cheek.position.set(dir * 14, 40, 18);
+      group.add(cheek);
+
+      // Eye orbital recess
+      const eyeLid = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 8, 0, Math.PI), mat);
+      eyeLid.rotation.x = -Math.PI / 4;
+      eyeLid.position.set(dir * 9, 49, 23);
+      group.add(eyeLid);
+    });
+
+    // Upper & Lower Lips
+    const lipTop = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 12, 12), mat);
+    lipTop.rotateZ(Math.PI / 2);
+    lipTop.position.set(0, 31, 22);
+    group.add(lipTop);
+
+    const lipBottom = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 10, 12), mat);
+    lipBottom.rotateZ(Math.PI / 2);
+    lipBottom.position.set(0, 27, 21.5);
+    group.add(lipBottom);
+
+    // Defined Chin
+    const chin = new THREE.Mesh(new THREE.BoxGeometry(12, 10, 12), mat);
+    chin.position.set(0, 18, 18);
+    group.add(chin);
+
+    // Neck Pedestal
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(11, 14, 25, 20), mat);
+    neck.position.set(0, 10, 0);
+    group.add(neck);
+
+    // Marble Display Plinth
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(40, 6, 40), mat);
+    plinth.position.set(0, 3, 0);
+    group.add(plinth);
+
+    return group;
+  }
+
+  /**
+   * Anatomical Human Eye
+   */
+  buildHumanEye() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+    const eyeRadius = 32;
+
+    // 1. Sclera (Eyeball Globe)
+    const eyeball = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 36, 24), mat);
+    eyeball.position.set(0, eyeRadius + 5, 0);
+    group.add(eyeball);
+
+    // 2. Cornea Lens Bulge
+    const cornea = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.55, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.45), mat);
+    cornea.position.set(0, eyeRadius + 5, eyeRadius * 0.72);
+    cornea.rotation.x = Math.PI / 2;
+    group.add(cornea);
+
+    // 3. Iris Ring
+    const iris = new THREE.Mesh(new THREE.TorusGeometry(eyeRadius * 0.38, 2.5, 16, 48), mat);
+    iris.position.set(0, eyeRadius + 5, eyeRadius * 0.92);
+    group.add(iris);
+
+    // 4. Central Pupil Aperture
+    const pupil = new THREE.Mesh(new THREE.CylinderGeometry(eyeRadius * 0.16, eyeRadius * 0.16, 2, 24), mat);
+    pupil.rotateX(Math.PI / 2);
+    pupil.position.set(0, eyeRadius + 5, eyeRadius * 0.94);
+    group.add(pupil);
+
+    // 5. Minimalist Sculptural Stand
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(4, 8, 20, 16), mat);
+    stand.position.set(0, 10, 0);
+    group.add(stand);
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(26, 28, 5, 32), mat);
+    base.position.set(0, 2.5, 0);
+    group.add(base);
+
+    return group;
+  }
+
+  /**
+   * DNA Double Helix
+   */
+  buildDNAHelix() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+    const turns = 3.5;
+    const height = 120;
+    const radius = 22;
+    const pairs = 32;
+
+    for (let i = 0; i < pairs; i++) {
+      const frac = i / pairs;
+      const angle = frac * Math.PI * 2 * turns;
+      const y = frac * height + 10;
+
+      const x1 = Math.cos(angle) * radius;
+      const z1 = Math.sin(angle) * radius;
+      const x2 = Math.cos(angle + Math.PI) * radius;
+      const z2 = Math.sin(angle + Math.PI) * radius;
+
+      // Nucleotide Node 1 & 2
+      const s1 = new THREE.Mesh(new THREE.SphereGeometry(3.5, 12, 10), mat);
+      s1.position.set(x1, y, z1);
+      group.add(s1);
+
+      const s2 = new THREE.Mesh(new THREE.SphereGeometry(3.5, 12, 10), mat);
+      s2.position.set(x2, y, z2);
+      group.add(s2);
+
+      // Connecting Base Pair Rung
+      const rung = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, radius * 2, 8), mat);
+      rung.position.set(0, y, 0);
+      rung.rotation.z = Math.PI / 2;
+      rung.rotation.y = -angle;
+      group.add(rung);
+    }
+
+    return group;
+  }
+
+  // ==========================================
+  // 2. FINE ART & SCULPTURE
+  // ==========================================
+
+  /**
+   * Fluid Modern Art Torus Knot Sculpture
+   */
+  buildModernArtSculpture() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Torus Knot Ribbon (3, 4 Harmonic Curve)
+    const knotGeo = new THREE.TorusKnotGeometry(28, 7.5, 128, 32, 2, 5);
+    const knot = new THREE.Mesh(knotGeo, mat);
+    knot.position.set(0, 52, 0);
+    group.add(knot);
+
+    // Gallery Pedestal
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(26, 30, 16, 24), mat);
+    plinth.position.set(0, 8, 0);
+    group.add(plinth);
+
+    return group;
+  }
+
+  /**
+   * Brilliant-Cut Faceted Gemstone / Diamond
+   */
+  buildFacetedGemstone() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Faceted Icosahedron / Gem
+    const gem = new THREE.Mesh(new THREE.IcosahedronGeometry(28, 1), mat);
+    gem.scale.set(1.1, 0.9, 1.1);
+    gem.position.set(0, 35, 0);
+    group.add(gem);
+
+    // Display Ring Setting
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(22, 3, 16, 36), mat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(0, 20, 0);
+    group.add(ring);
+
+    return group;
+  }
+
+  /**
+   * Royal Crown
+   */
+  buildRoyalCrown() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+    const crownR = 30;
+
+    // Circlet Base
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(crownR, crownR, 8, 32, 1, true), mat);
+    band.position.set(0, 12, 0);
+    group.add(band);
+
+    // 6 Regal Spire Peaks with Jewels
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const x = Math.cos(angle) * crownR;
+      const z = Math.sin(angle) * crownR;
+
+      const peak = new THREE.Mesh(new THREE.ConeGeometry(4.5, 20, 6), mat);
+      peak.position.set(x, 26, z);
+      group.add(peak);
+
+      const gem = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 8), mat);
+      gem.position.set(x, 38, z);
+      group.add(gem);
+    }
+
+    return group;
+  }
+
+  /**
+   * Acoustic / Electric Guitar
+   */
+  buildGuitar() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Lower & Upper Body Bouts
+    const lowerBout = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 8, 32), mat);
+    lowerBout.rotateX(Math.PI / 2);
+    lowerBout.position.set(0, 30, 0);
+    group.add(lowerBout);
+
+    const upperBout = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 8, 32), mat);
+    upperBout.rotateX(Math.PI / 2);
+    upperBout.position.set(0, 60, 0);
+    group.add(upperBout);
+
+    // Sound Hole
+    const hole = new THREE.Mesh(new THREE.TorusGeometry(8, 1.5, 12, 24), mat);
+    hole.position.set(0, 52, 4.2);
+    group.add(hole);
+
+    // Long Neck
+    const neck = new THREE.Mesh(new THREE.BoxGeometry(6, 65, 4), mat);
+    neck.position.set(0, 100, 0);
+    group.add(neck);
+
+    // Headstock with Tuning Pegs
+    const headstock = new THREE.Mesh(new THREE.BoxGeometry(10, 20, 4), mat);
+    headstock.position.set(0, 138, 0);
+    group.add(headstock);
+
+    return group;
+  }
+
+  /**
+   * Medieval Sword
+   */
+  buildSword() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Double-edged Blade
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(8, 95, 2.5), mat);
+    blade.position.set(0, 68, 0);
+    group.add(blade);
+
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(5.5, 18, 4), mat);
+    tip.position.set(0, 124, 0);
+    group.add(tip);
+
+    // Crossguard
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(38, 5, 6), mat);
+    guard.position.set(0, 20, 0);
+    group.add(guard);
+
+    // Grip Hilt & Pommel
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 18, 12), mat);
+    grip.position.set(0, 9, 0);
+    group.add(grip);
+
+    const pommel = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 10), mat);
+    pommel.position.set(0, -1, 0);
+    group.add(pommel);
+
+    return group;
+  }
+
+  /**
+   * Medieval Castle Tower with Crenellations
+   */
+  buildCastleTower() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Main Tower Cylinder
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(24, 28, 90, 24), mat);
+    tower.position.set(0, 45, 0);
+    group.add(tower);
+
+    // Overhanging Battlement Ring
+    const battlement = new THREE.Mesh(new THREE.CylinderGeometry(28, 26, 12, 24), mat);
+    battlement.position.set(0, 92, 0);
+    group.add(battlement);
+
+    // 8 Crenellation Teeth
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const tooth = new THREE.Mesh(new THREE.BoxGeometry(7, 8, 4), mat);
+      tooth.position.set(Math.cos(angle) * 27, 101, Math.sin(angle) * 27);
+      tooth.rotation.y = -angle;
+      group.add(tooth);
+    }
+
+    return group;
+  }
+
+  /**
+   * Botanical Tree
+   */
+  buildTree() {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Trunk
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(5, 9, 45, 12), mat);
+    trunk.position.set(0, 22.5, 0);
+    group.add(trunk);
+
+    // Sculpted Tiered Foliage Canopy
+    [
+      [32, 28, 42],
+      [26, 24, 62],
+      [18, 18, 78]
+    ].forEach(([r, h, y]) => {
+      const foliage = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), mat);
+      foliage.position.set(0, y, 0);
+      group.add(foliage);
+    });
+
+    return group;
+  }
+
+  /**
+   * Universal Harmonic Manifold
+   * Algorithmic 3D procedural generator that handles ANY arbitrary concept or word!
+   */
+  buildUniversalHarmonicManifold(promptText = '') {
+    const group = new THREE.Group();
+    const mat = this.cadEngine.getMaterial();
+
+    // Generate deterministic harmonic parameters from prompt string
+    let hash = 0;
+    for (let c = 0; c < promptText.length; c++) {
+      hash = (hash << 5) - hash + promptText.charCodeAt(c);
+      hash |= 0;
+    }
+    const seed = Math.abs(hash);
+    const p1 = (seed % 5) + 2;
+    const q1 = ((seed >> 3) % 4) + 3;
+
+    // Sculptural Harmonic Manifold
+    const knotGeo = new THREE.TorusKnotGeometry(26, 6.5, 100, 24, p1, q1);
+    const mesh = new THREE.Mesh(knotGeo, mat);
+    mesh.position.set(0, 42, 0);
+    group.add(mesh);
+
+    // Solid Studio Base
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(24, 28, 8, 24), mat);
+    base.position.set(0, 4, 0);
+    group.add(base);
+
+    return group;
+  }
+
+  // ==========================================
+  // 3. MECHANICAL & VEHICLE METHODS
+  // ==========================================
+
   buildMercedesCar() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
 
-    // 1. Lower Chassis
     const chassisShape = new THREE.Shape();
-    chassisShape.moveTo(-32, -80);
-    chassisShape.lineTo(32, -80);
-    chassisShape.lineTo(32, 75);
-    chassisShape.lineTo(26, 85);
-    chassisShape.lineTo(-26, 85);
-    chassisShape.lineTo(-32, 75);
-    chassisShape.closePath();
+    chassisShape.moveTo(-32, -80); chassisShape.lineTo(32, -80); chassisShape.lineTo(32, 75);
+    chassisShape.lineTo(26, 85); chassisShape.lineTo(-26, 85); chassisShape.lineTo(-32, 75); chassisShape.closePath();
 
     const chassisGeo = new THREE.ExtrudeGeometry(chassisShape, { depth: 14, bevelEnabled: true, bevelSize: 2 });
     chassisGeo.rotateX(Math.PI / 2);
     chassisGeo.translate(0, 14, 0);
     group.add(new THREE.Mesh(chassisGeo, mat));
 
-    // 2. Cabin & Roof (Executive Greenhouse)
     const cabinShape = new THREE.Shape();
-    cabinShape.moveTo(-25, -45);
-    cabinShape.lineTo(25, -45);
-    cabinShape.lineTo(24, 25);
-    cabinShape.lineTo(-24, 25);
-    cabinShape.closePath();
-
+    cabinShape.moveTo(-25, -45); cabinShape.lineTo(25, -45); cabinShape.lineTo(24, 25); cabinShape.lineTo(-24, 25); cabinShape.closePath();
     const cabinGeo = new THREE.ExtrudeGeometry(cabinShape, { depth: 15, bevelEnabled: true, bevelSize: 3 });
     cabinGeo.rotateX(Math.PI / 2);
     cabinGeo.translate(0, 24, -10);
     group.add(new THREE.Mesh(cabinGeo, mat));
 
-    // 3. Hood Star Emblem & Radiator Grille
     const grille = new THREE.Mesh(new THREE.BoxGeometry(24, 8, 3), mat);
     grille.position.set(0, 16, 85);
     group.add(grille);
@@ -291,19 +683,13 @@ export class FeatureTree {
     starRing.position.set(0, 23, 83);
     group.add(starRing);
 
-    // 4. Alloy Wheels & Tires (4 Wheel Set with Rims)
-    [
-      [-32, 10, -50], [32, 10, -50],
-      [-32, 10, 50], [32, 10, 50]
-    ].forEach(([wx, wy, wz]) => {
-      // Outer Tire Rubber
+    [[-32, 10, -50], [32, 10, -50], [-32, 10, 50], [32, 10, 50]].forEach(([wx, wy, wz]) => {
       const tireGeo = new THREE.CylinderGeometry(11, 11, 8, 24);
       tireGeo.rotateZ(Math.PI / 2);
       const tire = new THREE.Mesh(tireGeo, mat);
       tire.position.set(wx, wy, wz);
       group.add(tire);
 
-      // Inner Hub Rim
       const rimGeo = new THREE.CylinderGeometry(6, 6, 8.5, 16);
       rimGeo.rotateZ(Math.PI / 2);
       const rim = new THREE.Mesh(rimGeo, mat);
@@ -314,30 +700,23 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Automotive Tire (Tiek / Wheel)
-   */
   buildAutomotiveTire(radius = 35) {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
 
-    // 1. Toroidal Outer Rubber Tread
     const treadGeo = new THREE.TorusGeometry(radius, 12, 24, 48);
     treadGeo.rotateX(Math.PI / 2);
     treadGeo.translate(0, radius + 12, 0);
     group.add(new THREE.Mesh(treadGeo, mat));
 
-    // 2. Central Alloy Wheel Rim
     const rimGeo = new THREE.CylinderGeometry(radius * 0.75, radius * 0.75, 18, 32);
     rimGeo.translate(0, radius + 12, 0);
     group.add(new THREE.Mesh(rimGeo, mat));
 
-    // 3. Center Axle Bore
     const axleGeo = new THREE.CylinderGeometry(radius * 0.25, radius * 0.25, 22, 24);
     axleGeo.translate(0, radius + 12, 0);
     group.add(new THREE.Mesh(axleGeo, mat));
 
-    // 4. Five Wheel Lug Nuts
     for (let i = 0; i < 5; i++) {
       const angle = (i / 5) * Math.PI * 2;
       const lug = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 4, 6), mat);
@@ -348,9 +727,6 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Precision Circular Disc (Circle / Ring)
-   */
   buildCircularDisc(diameter = 60, thickness = 8) {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
@@ -359,12 +735,11 @@ export class FeatureTree {
     const shape = new THREE.Shape();
     shape.absarc(0, 0, rad, 0, Math.PI * 2, false);
 
-    // Center hole for mounting
     const hole = new THREE.Path();
     hole.absarc(0, 0, rad * 0.35, 0, Math.PI * 2, true);
     shape.holes.push(hole);
 
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelSize: 1.5, bevelThickness: 1.5 });
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelSize: 1.5 });
     geo.rotateX(Math.PI / 2);
     geo.translate(0, thickness, 0);
     group.add(new THREE.Mesh(geo, mat));
@@ -372,19 +747,13 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Hollow Coffee Mug with Handle
-   */
   buildCoffeeMug() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
-
-    // Outer Mug Body
     const body = new THREE.Mesh(new THREE.CylinderGeometry(20, 18, 50, 32), mat);
     body.position.y = 25;
     group.add(body);
 
-    // Handle
     const handle = new THREE.Mesh(new THREE.TorusGeometry(14, 3, 16, 32, Math.PI * 1.1), mat);
     handle.position.set(20, 25, 0);
     handle.rotation.z = -Math.PI / 2;
@@ -393,24 +762,17 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Modern Ergonomic Chair
-   */
   buildChair() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
-
-    // Seat Cushion
     const seat = new THREE.Mesh(new THREE.BoxGeometry(40, 5, 40), mat);
     seat.position.y = 35;
     group.add(seat);
 
-    // Backrest
     const back = new THREE.Mesh(new THREE.BoxGeometry(40, 45, 5), mat);
     back.position.set(0, 58, -18);
     group.add(back);
 
-    // 4 Legs
     [[-16, 17, -16], [16, 17, -16], [-16, 17, 16], [16, 17, 16]].forEach(([lx, ly, lz]) => {
       const leg = new THREE.Mesh(new THREE.CylinderGeometry(2, 1.5, 35, 12), mat);
       leg.position.set(lx, ly, lz);
@@ -420,19 +782,13 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Modern Desk / Table
-   */
   buildTable() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
-
-    // Tabletop
     const top = new THREE.Mesh(new THREE.BoxGeometry(90, 6, 50), mat);
     top.position.y = 52;
     group.add(top);
 
-    // 4 Tapered Legs
     [[-38, 25, -20], [38, 25, -20], [-38, 25, 20], [38, 25, 20]].forEach(([tx, ty, tz]) => {
       const leg = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 1.5, 50, 16), mat);
       leg.position.set(tx, ty, tz);
@@ -442,19 +798,13 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Smartphone / Tablet
-   */
   buildSmartphone() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
-
-    // Beveled Body
     const body = new THREE.Mesh(new THREE.BoxGeometry(36, 75, 5), mat);
     body.position.y = 38;
     group.add(body);
 
-    // Camera Island
     const cam = new THREE.Mesh(new THREE.BoxGeometry(14, 14, 2), mat);
     cam.position.set(9, 65, -3);
     group.add(cam);
@@ -462,19 +812,13 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Industrial Hex Bolt
-   */
   buildBolt() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
-
-    // Hex Head
     const head = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 12, 6), mat);
     head.position.y = 54;
     group.add(head);
 
-    // Threaded Shaft
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 48, 24), mat);
     shaft.position.y = 24;
     group.add(shaft);
@@ -482,19 +826,12 @@ export class FeatureTree {
     return group;
   }
 
-  /**
-   * Mounting Plate with Center Bore & 4 Corner Holes
-   */
   buildMountingPlate(w = 100, d = 80, h = 15, holeDia = 24) {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
 
     const shape = new THREE.Shape();
-    shape.moveTo(-w / 2, -d / 2);
-    shape.lineTo(w / 2, -d / 2);
-    shape.lineTo(w / 2, d / 2);
-    shape.lineTo(-w / 2, d / 2);
-    shape.closePath();
+    shape.moveTo(-w / 2, -d / 2); shape.lineTo(w / 2, -d / 2); shape.lineTo(w / 2, d / 2); shape.lineTo(-w / 2, d / 2); shape.closePath();
 
     const centerHole = new THREE.Path();
     centerHole.absarc(0, 0, holeDia / 2, 0, Math.PI * 2, true);
@@ -507,7 +844,7 @@ export class FeatureTree {
       shape.holes.push(boltHole);
     });
 
-    const extGeo = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: true, bevelSize: 1.5, bevelThickness: 1.5 });
+    const extGeo = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: true, bevelSize: 1.5 });
     extGeo.rotateX(Math.PI / 2);
     extGeo.translate(0, h, 0);
     group.add(new THREE.Mesh(extGeo, mat));
@@ -520,25 +857,14 @@ export class FeatureTree {
     const mat = this.cadEngine.getMaterial();
 
     const fuseShape = new THREE.Shape();
-    fuseShape.moveTo(0, 75);
-    fuseShape.lineTo(20, 20);
-    fuseShape.lineTo(26, -42);
-    fuseShape.lineTo(-26, -42);
-    fuseShape.lineTo(-20, 20);
-    fuseShape.closePath();
-
+    fuseShape.moveTo(0, 75); fuseShape.lineTo(20, 20); fuseShape.lineTo(26, -42); fuseShape.lineTo(-26, -42); fuseShape.lineTo(-20, 20); fuseShape.closePath();
     const fuseGeo = new THREE.ExtrudeGeometry(fuseShape, { depth: 15, bevelEnabled: true, bevelSize: 4 });
     fuseGeo.rotateX(-Math.PI / 2);
     fuseGeo.translate(0, 10, 0);
     group.add(new THREE.Mesh(fuseGeo, mat));
 
     const wingShape = new THREE.Shape();
-    wingShape.moveTo(15, 10);
-    wingShape.lineTo(95, -35);
-    wingShape.lineTo(85, -50);
-    wingShape.lineTo(20, -38);
-    wingShape.closePath();
-
+    wingShape.moveTo(15, 10); wingShape.lineTo(95, -35); wingShape.lineTo(85, -50); wingShape.lineTo(20, -38); wingShape.closePath();
     const wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth: 3.5, bevelEnabled: true, bevelSize: 1 });
     wingGeo.rotateX(-Math.PI / 2);
     wingGeo.translate(0, 8, 0);
@@ -546,19 +872,15 @@ export class FeatureTree {
     const rw = new THREE.Mesh(wingGeo, mat);
     const lw = rw.clone();
     lw.scale.x = -1;
-    group.add(rw);
-    group.add(lw);
+    group.add(rw); group.add(lw);
 
     const finGeo = new THREE.BoxGeometry(3, 30, 26);
     finGeo.translate(0, 15, 0);
     const rf = new THREE.Mesh(finGeo, mat);
-    rf.position.set(18, 12, -34);
-    rf.rotation.z = -0.35;
+    rf.position.set(18, 12, -34); rf.rotation.z = -0.35;
     const lf = new THREE.Mesh(finGeo, mat);
-    lf.position.set(-18, 12, -34);
-    lf.rotation.z = 0.35;
-    group.add(rf);
-    group.add(lf);
+    lf.position.set(-18, 12, -34); lf.rotation.z = 0.35;
+    group.add(rf); group.add(lf);
 
     return group;
   }
@@ -714,7 +1036,7 @@ export class FeatureTree {
     for (let i = 0; i < this.features.length; i++) {
       const f = this.features[i];
       code += `    # Step ${i + 1}: ${f.type}\n`;
-      code += `    # Dimensions: Scale (${f.scaleX || 1}, ${f.scaleY || 1}, ${f.scaleZ || 1})\n`;
+      code += `    # Scale: (${f.scaleX || 1}, ${f.scaleY || 1}, ${f.scaleZ || 1})\n`;
     }
     code += `\nexport_step(model.part, "voxcad_export.step")\n`;
     return code;
