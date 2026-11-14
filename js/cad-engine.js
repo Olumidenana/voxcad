@@ -314,22 +314,39 @@ export class CADEngine {
     mesh.userData.name = name;
 
     // Calculate bounds of this new mesh
+    mesh.updateMatrixWorld(true);
     const newBox = new THREE.Box3().setFromObject(mesh);
     const newSize = newBox.getSize(new THREE.Vector3());
+    const validWidth = (isFinite(newSize.x) && newSize.x > 5) ? newSize.x : 70;
+    const validDepth = (isFinite(newSize.z) && newSize.z > 5) ? newSize.z : 70;
 
     // SMART AUTO-LAYOUT: If objects already exist, offset this object cleanly on the plane!
     // Never stack on the same spot!
     if (this.entities.length > 0) {
       let maxX = -Infinity;
+      let refZ = 0;
       this.entities.forEach(ent => {
         if (ent.visible) {
+          ent.mesh.updateMatrixWorld(true);
           const b = new THREE.Box3().setFromObject(ent.mesh);
-          if (b.max.x > maxX) maxX = b.max.x;
+          if (b.max.x > maxX) {
+            maxX = b.max.x;
+            refZ = ent.mesh.position.z;
+          }
         }
       });
       const spacingGap = 35; // 35mm comfortable spacing
-      const targetX = maxX + (newSize.x / 2) + spacingGap;
+      let targetX = maxX + (validWidth / 2) + spacingGap;
+      let targetZ = refZ;
+
+      if (targetX > 220) {
+        targetX = 0;
+        targetZ += validDepth + spacingGap;
+      }
+
       mesh.position.x = targetX;
+      mesh.position.z = targetZ;
+      mesh.updateMatrixWorld(true);
     }
 
     const entity = {
@@ -443,6 +460,85 @@ export class CADEngine {
     if (this.onSceneUpdated) {
       this.onSceneUpdated(this.entities, null);
     }
+  }
+
+  // -------------------------------------------------------------
+  // Blender-Equivalent Spatial Manipulations
+  // -------------------------------------------------------------
+
+  moveEntity(direction, distance = 35) {
+    if (!this.selectedEntity) return;
+    const mesh = this.selectedEntity.mesh;
+    switch (direction) {
+      case 'right':
+        mesh.position.x += distance;
+        break;
+      case 'left':
+        mesh.position.x -= distance;
+        break;
+      case 'up':
+        mesh.position.y += distance;
+        break;
+      case 'down':
+        mesh.position.y = Math.max(0, mesh.position.y - distance);
+        break;
+      case 'forward':
+        mesh.position.z += distance;
+        break;
+      case 'back':
+        mesh.position.z -= distance;
+        break;
+    }
+    mesh.updateMatrixWorld(true);
+    this.updateSelectionHelper();
+    this.updateEntityMetrics(this.selectedEntity);
+    if (this.onEntityTransformed) this.onEntityTransformed(this.selectedEntity);
+  }
+
+  rotateEntity(degrees = 45, axis = 'y') {
+    if (!this.selectedEntity) return;
+    const mesh = this.selectedEntity.mesh;
+    mesh.rotation[axis] += THREE.MathUtils.degToRad(degrees);
+    mesh.updateMatrixWorld(true);
+    this.updateSelectionHelper();
+    if (this.onEntityTransformed) this.onEntityTransformed(this.selectedEntity);
+  }
+
+  scaleEntity(factor = 1.5) {
+    if (!this.selectedEntity) return;
+    const mesh = this.selectedEntity.mesh;
+    mesh.scale.multiplyScalar(factor);
+    mesh.updateMatrixWorld(true);
+    this.updateSelectionHelper();
+    this.updateEntityMetrics(this.selectedEntity);
+    if (this.onEntityTransformed) this.onEntityTransformed(this.selectedEntity);
+  }
+
+  duplicateEntity(id = null) {
+    const target = id ? this.entities.find(e => e.id === id) : this.selectedEntity;
+    if (!target) return null;
+
+    const clonedMesh = target.mesh.clone(true);
+    clonedMesh.traverse(child => {
+      if (child.isMesh && child.material) {
+        child.material = child.material.clone();
+      }
+    });
+
+    const newName = `${target.name} (Copy)`;
+    const newEnt = this.addEntity(newName, clonedMesh, {
+      summary: target.summary,
+      type: target.type,
+      code: target.code
+    });
+    return newEnt;
+  }
+
+  getNextEntity() {
+    if (this.entities.length === 0) return null;
+    if (!this.selectedEntity) return this.entities[0];
+    const idx = this.entities.findIndex(e => e.id === this.selectedEntity.id);
+    return this.entities[(idx + 1) % this.entities.length];
   }
 
   updateSelectionHelper() {

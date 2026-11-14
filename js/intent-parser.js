@@ -35,16 +35,13 @@ export class IntentParser {
     if (/^(right|right view)$/i.test(s) || s.includes('right view')) {
       return { type: 'CAMERA_VIEW', view: 'right', message: 'Switched to right view.' };
     }
-    if (s.includes('reset') || s.includes('center') || s.includes('fit')) {
-      return { type: 'CAMERA_VIEW', view: 'reset', message: 'Centered view on model.' };
-    }
     if (s.includes('wireframe') || s.includes('lines')) {
       return { type: 'TOGGLE_WIREFRAME', message: 'Toggled wireframe mode.' };
     }
     if (s.includes('grid')) {
       return { type: 'TOGGLE_GRID', message: 'Toggled grid floor.' };
     }
-    if (s.includes('rotate') || s.includes('spin') || s.includes('turntable')) {
+    if (s.includes('turntable') || s.includes('auto rotate') || s.includes('toggle rotation') || s.includes('showcase rotation')) {
       return { type: 'TOGGLE_AUTOROTATE', message: 'Toggled showcase rotation.' };
     }
 
@@ -55,8 +52,92 @@ export class IntentParser {
     if (s.includes('redo')) {
       return { type: 'REDO', message: 'Redid feature.' };
     }
-    if (s.includes('clear') || s.includes('delete all') || s.includes('reset canvas') || s.includes('blank')) {
+    if (s.includes('clear all') || s.includes('delete all') || s.includes('reset canvas') || s.includes('blank canvas')) {
       return { type: 'CLEAR_ALL', message: 'Canvas reset to blank.' };
+    }
+
+    // -------------------------------------------------------------
+    // BLENDER SPATIAL OPERATIONS (Voice & Text Equivalent to Blender G, R, S, Shift+D, X)
+    // -------------------------------------------------------------
+
+    // Duplicate Object (Shift+D)
+    if (s.match(/\b(duplicate|clone|copy\s*(?:this|it|object)?)\b/i)) {
+      return { type: 'DUPLICATE_ENTITY', message: 'Duplicated selected object with smart offset.' };
+    }
+
+    // Delete Selected Object (X)
+    if (s.match(/\b(delete|remove)\s*(?:this|it|object|selected)\b/i)) {
+      return { type: 'DELETE_ENTITY', message: 'Deleted selected object.' };
+    }
+
+    // Save to Vault / Library (Ctrl+S)
+    if (s.match(/\b(save|store)\s*(?:this|it|model|design|to\s*vault)?\b/i)) {
+      return { type: 'SAVE_TO_VAULT', message: 'Saved design to 3D Vault.' };
+    }
+
+    // Move / Translate in 3D (G)
+    // Supports: "move right 50", "move left", "shift up 30mm", "move down", "move back", "move forward 40"
+    const moveMatch = s.match(/(?:move|shift|translate)\s*(?:it|the\s*object|selected)?\s*(\d+(?:\.\d+)?)?\s*(?:mm)?\s*(right|left|up|down|back|forward)/i)
+      || s.match(/(?:move|shift|translate)\s*(?:it|the\s*object|selected)?\s*(right|left|up|down|back|forward)\s*(?:by)?\s*(\d+(?:\.\d+)?)?\s*(?:mm)?/i);
+    if (moveMatch) {
+      const dir = (moveMatch[2] && isNaN(parseFloat(moveMatch[2])) ? moveMatch[2] : moveMatch[1]).toLowerCase();
+      const numCandidate = parseFloat(moveMatch[1] || moveMatch[2]);
+      const dist = isNaN(numCandidate) ? 35 : numCandidate;
+      return {
+        type: 'TRANSFORM_MOVE',
+        direction: dir,
+        distance: dist,
+        message: `Moved selected object ${dir} by ${dist}mm.`
+      };
+    }
+
+    // Rotate in 3D (R)
+    // Supports: "rotate 45 degrees", "rotate 90", "turn 90 degrees", "rotate right", "rotate left"
+    const rotMatch = s.match(/(?:rotate|turn|spin)\s*(?:it|the\s*object|selected)?\s*(?:by)?\s*(\d+(?:\.\d+)?)\s*(?:deg|degrees)?/i)
+      || s.match(/(?:rotate|turn)\s*(?:it|the\s*object|selected)?\s*(right|left|clockwise|counter\s*clockwise)/i);
+    if (rotMatch) {
+      let deg = parseFloat(rotMatch[1]);
+      if (isNaN(deg)) {
+        const d = (rotMatch[1] || '').toLowerCase();
+        deg = (d === 'left' || d.includes('counter')) ? -45 : 45;
+      }
+      return {
+        type: 'TRANSFORM_ROTATE',
+        angle: deg,
+        message: `Rotated selected object by ${deg}°.`
+      };
+    }
+
+    // Scale / Resize in 3D (S)
+    // Supports: "scale 2x", "make it 2 times bigger", "double size", "half size", "shrink 50%"
+    const scaleMatch = s.match(/(?:scale|resize|make\s*it)\s*(?:by)?\s*(\d+(?:\.\d+)?)\s*x?/i);
+    if (scaleMatch && !s.includes('by') && !s.includes('x') && !s.match(/\d+\s*x\s*\d+/)) {
+      const factor = parseFloat(scaleMatch[1]);
+      return {
+        type: 'TRANSFORM_SCALE',
+        factor: factor,
+        message: `Scaled selected object to ${factor}×.`
+      };
+    }
+    if (s.includes('double') || s.includes('twice as big') || s.includes('make it bigger')) {
+      return { type: 'TRANSFORM_SCALE', factor: 1.5, message: 'Scaled selected object up by 1.5×.' };
+    }
+    if (s.includes('half size') || s.includes('smaller') || s.includes('shrink')) {
+      return { type: 'TRANSFORM_SCALE', factor: 0.67, message: 'Scaled selected object down to 0.67×.' };
+    }
+
+    // Select Object by Name or Query
+    const selMatch = s.match(/^(?:select|choose|focus)\s*(?:the\s*)?([a-z0-9_\s]+)$/i);
+    if (selMatch && !s.includes('material') && !s.includes('view') && !s.includes('face')) {
+      return {
+        type: 'SELECT_ENTITY',
+        query: selMatch[1].trim(),
+        message: `Selected ${selMatch[1].trim()}.`
+      };
+    }
+
+    if (s.includes('reset camera') || s.includes('center view') || s.includes('fit view')) {
+      return { type: 'CAMERA_VIEW', view: 'reset', message: 'Centered view on model.' };
     }
 
     // 3. Materials

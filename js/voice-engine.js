@@ -24,6 +24,10 @@ export class VoiceEngine {
     this.onError = null;
     this.onInactivityTimeout = null;
 
+    // Utterance tracking to prevent Chrome dropping interim speech
+    this.lastRecognizedText = '';
+    this.hasFinalizedCurrentUtterance = false;
+
     // CAD Lexicon Phonetic Map
     this.phoneticMap = [
       { pattern: /\b(counter\s*four|counter\s*for)\b/gi, replacement: "counterbore" },
@@ -57,6 +61,8 @@ export class VoiceEngine {
 
       this.recognition.onstart = () => {
         this.isListening = true;
+        this.lastRecognizedText = '';
+        this.hasFinalizedCurrentUtterance = false;
         this.clearSilenceTimer();
         this.playAcousticCue(659.25, 0.08); // E5 Chime
         if (this.onStatusChange) this.onStatusChange('listening');
@@ -80,11 +86,17 @@ export class VoiceEngine {
         const raw = (final || interim).trim();
         const conditioned = this.applyCADLexicon(raw);
 
+        if (conditioned) {
+          this.lastRecognizedText = conditioned;
+        }
+
         if (this.onTranscriptUpdate) {
           this.onTranscriptUpdate(conditioned, !!final);
         }
 
         if (final && this.onCommandFinalized) {
+          this.hasFinalizedCurrentUtterance = true;
+          this.lastRecognizedText = '';
           this.onCommandFinalized(conditioned);
         }
       };
@@ -111,6 +123,14 @@ export class VoiceEngine {
       };
 
       this.recognition.onend = () => {
+        // Fallback: If user spoke a phrase and stopped talking, but Chrome didn't mark isFinal
+        if (!this.hasFinalizedCurrentUtterance && this.lastRecognizedText && this.onCommandFinalized) {
+          this.hasFinalizedCurrentUtterance = true;
+          const textToDispatch = this.lastRecognizedText;
+          this.lastRecognizedText = '';
+          this.onCommandFinalized(textToDispatch);
+        }
+
         this.isListening = false;
         if (this.onStatusChange) this.onStatusChange('idle');
       };
@@ -138,13 +158,20 @@ export class VoiceEngine {
 
     if (this.isListening) return;
 
+    this.lastRecognizedText = '';
+    this.hasFinalizedCurrentUtterance = false;
+
     try {
       this.recognition.start();
     } catch (e) {
       console.warn('Recognition start exception:', e);
       try {
         this.recognition.stop();
-        setTimeout(() => this.recognition.start(), 150);
+        setTimeout(() => {
+          this.lastRecognizedText = '';
+          this.hasFinalizedCurrentUtterance = false;
+          this.recognition.start();
+        }, 150);
       } catch (err) {}
     }
   }

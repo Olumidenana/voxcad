@@ -434,32 +434,75 @@ export class FeatureTree {
   buildMercedesCar() {
     const group = new THREE.Group();
     const mat = this.cadEngine.getMaterial();
+    const interiorMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.25 });
+    const seatMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65 });
 
+    // Exterior Chassis
     const chassisShape = new THREE.Shape();
     chassisShape.moveTo(-32, -80); chassisShape.lineTo(32, -80); chassisShape.lineTo(32, 75);
     chassisShape.lineTo(26, 85); chassisShape.lineTo(-26, 85); chassisShape.lineTo(-32, 75); chassisShape.closePath();
 
     const chassisGeo = new THREE.ExtrudeGeometry(chassisShape, { depth: 14, bevelEnabled: true, bevelSize: 2 });
     chassisGeo.rotateX(Math.PI / 2); chassisGeo.translate(0, 14, 0);
-    group.add(new THREE.Mesh(chassisGeo, mat));
+    const chassisMesh = new THREE.Mesh(chassisGeo, mat);
+    chassisMesh.userData.isExterior = true;
+    group.add(chassisMesh);
 
+    // Exterior Cabin Roof
     const cabinShape = new THREE.Shape();
     cabinShape.moveTo(-25, -45); cabinShape.lineTo(25, -45); cabinShape.lineTo(24, 25); cabinShape.lineTo(-24, 25); cabinShape.closePath();
     const cabinGeo = new THREE.ExtrudeGeometry(cabinShape, { depth: 15, bevelEnabled: true, bevelSize: 3 });
     cabinGeo.rotateX(Math.PI / 2); cabinGeo.translate(0, 24, -10);
-    group.add(new THREE.Mesh(cabinGeo, mat));
+    const cabinMesh = new THREE.Mesh(cabinGeo, mat);
+    cabinMesh.userData.isExterior = true;
+    group.add(cabinMesh);
 
-    const grille = new THREE.Mesh(new THREE.BoxGeometry(24, 8, 3), mat);
-    grille.position.set(0, 16, 85); group.add(grille);
+    // INTERIOR COMPONENTS: Engine block, Dashboard, Seats, Steering wheel
+    const engineBlock = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 26), interiorMat);
+    engineBlock.position.set(0, 14, 48);
+    engineBlock.userData.isInterior = true;
+    group.add(engineBlock);
 
-    const starRing = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.6, 8, 24), mat);
-    starRing.position.set(0, 23, 83); group.add(starRing);
+    const seatL = new THREE.Mesh(new THREE.BoxGeometry(11, 14, 12), seatMat);
+    seatL.position.set(-11, 15, -12);
+    seatL.userData.isInterior = true;
+    group.add(seatL);
 
+    const seatR = new THREE.Mesh(new THREE.BoxGeometry(11, 14, 12), seatMat);
+    seatR.position.set(11, 15, -12);
+    seatR.userData.isInterior = true;
+    group.add(seatR);
+
+    const dashboard = new THREE.Mesh(new THREE.BoxGeometry(32, 6, 8), seatMat);
+    dashboard.position.set(0, 18, 12);
+    dashboard.userData.isInterior = true;
+    group.add(dashboard);
+
+    const steering = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.7, 8, 18), interiorMat);
+    steering.position.set(-11, 20, 8);
+    steering.rotation.x = Math.PI / 4;
+    steering.userData.isInterior = true;
+    group.add(steering);
+
+    // Front Grille & Mercedes Star
+    const grille = new THREE.Mesh(new THREE.BoxGeometry(24, 8, 3), interiorMat);
+    grille.position.set(0, 16, 85);
+    grille.userData.isExterior = true;
+    group.add(grille);
+
+    const starRing = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.6, 8, 24), interiorMat);
+    starRing.position.set(0, 23, 83);
+    starRing.userData.isExterior = true;
+    group.add(starRing);
+
+    // 4 Wheels
     [[-32, 10, -50], [32, 10, -50], [-32, 10, 50], [32, 10, 50]].forEach(([wx, wy, wz]) => {
       const tireGeo = new THREE.CylinderGeometry(11, 11, 8, 24);
       tireGeo.rotateZ(Math.PI / 2);
-      const tire = new THREE.Mesh(tireGeo, mat);
-      tire.position.set(wx, wy, wz); group.add(tire);
+      const tire = new THREE.Mesh(tireGeo, seatMat);
+      tire.position.set(wx, wy, wz);
+      tire.userData.isExterior = true;
+      group.add(tire);
     });
     return group;
   }

@@ -60,12 +60,15 @@ class VoxCADApp {
       sliderRotation: document.getElementById('sliderRotation'),
       rotationNum: document.getElementById('rotationNum'),
       btnResetTweaks: document.getElementById('btnResetTweaks'),
+      btnDuplicateEntity: document.getElementById('btnDuplicateEntity'),
+      btnDeleteEntity: document.getElementById('btnDeleteEntity'),
       btnGizmoTranslate: document.getElementById('btnGizmoTranslate'),
       btnGizmoRotate: document.getElementById('btnGizmoRotate'),
       btnGizmoScale: document.getElementById('btnGizmoScale'),
       btnMic: document.getElementById('btnMic'),
       commandForm: document.getElementById('commandForm'),
       commandInput: document.getElementById('commandInput'),
+      btnSendCommand: document.getElementById('btnSendCommand'),
       aiMessage: document.getElementById('aiMessage'),
       micStateLabel: document.getElementById('micStateLabel'),
       notificationBanner: document.getElementById('notificationBanner'),
@@ -451,6 +454,33 @@ class VoxCADApp {
       }
     });
 
+    if (this.dom.btnDuplicateEntity) {
+      this.dom.btnDuplicateEntity.addEventListener('click', () => {
+        if (!this.cadEngine.selectedEntity) {
+          this.showNotification('Please select an object first to duplicate.');
+          return;
+        }
+        const clone = this.cadEngine.duplicateEntity();
+        if (clone) {
+          this.showNotification(`✨ Duplicated "${clone.name}" beside original.`);
+          this.updateMessage(`Duplicated "${clone.name}".`);
+        }
+      });
+    }
+
+    if (this.dom.btnDeleteEntity) {
+      this.dom.btnDeleteEntity.addEventListener('click', () => {
+        if (!this.cadEngine.selectedEntity) {
+          this.showNotification('Please select an object first to delete.');
+          return;
+        }
+        const name = this.cadEngine.selectedEntity.name;
+        this.cadEngine.removeEntity(this.cadEngine.selectedEntity.id);
+        this.showNotification(`🗑️ Deleted "${name}".`);
+        this.updateMessage(`Deleted "${name}".`);
+      });
+    }
+
     // Mic Button
     this.dom.btnMic.addEventListener('click', () => {
       this.isAwaitingFollowup = false;
@@ -459,8 +489,9 @@ class VoxCADApp {
 
     if (this.dom.btnTestMic) {
       this.dom.btnTestMic.addEventListener('click', () => {
+        this.isAwaitingFollowup = false;
         this.voiceEngine.startListening();
-        this.showNotification('Microphone activated. Speak something to test!');
+        this.showNotification('🎙️ Microphone active! Speak your design or command (e.g. "Mercedes car", "A circle", "Move right 50mm").');
       });
     }
 
@@ -607,12 +638,30 @@ class VoxCADApp {
       });
     }
 
-    this.dom.commandForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+    const handleCommandSubmit = () => {
       const text = this.dom.commandInput.value.trim();
       if (text || this.stagedImage) {
         this.executeCommand(text || 'Replicate this image into 3D');
         this.dom.commandInput.value = '';
+      }
+    };
+
+    this.dom.commandForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleCommandSubmit();
+    });
+
+    if (this.dom.btnSendCommand) {
+      this.dom.btnSendCommand.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleCommandSubmit();
+      });
+    }
+
+    this.dom.commandInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleCommandSubmit();
       }
     });
 
@@ -785,6 +834,109 @@ class VoxCADApp {
       return;
     }
 
+    // -------------------------------------------------------------
+    // BLENDER SPATIAL MANIPULATION COMMANDS (Voice, Test Bar, & Direct)
+    // -------------------------------------------------------------
+
+    if (intent && intent.type === 'TRANSFORM_MOVE') {
+      if (!this.cadEngine.selectedEntity) {
+        this.showNotification('Please select an object to move, or create one first.');
+        return;
+      }
+      this.cadEngine.moveEntity(intent.direction, intent.distance);
+      this.updateMessage(intent.message);
+      this.voiceEngine.speak(intent.message);
+      return;
+    }
+
+    if (intent && intent.type === 'TRANSFORM_ROTATE') {
+      if (!this.cadEngine.selectedEntity) {
+        this.showNotification('Please select an object to rotate.');
+        return;
+      }
+      this.cadEngine.rotateEntity(intent.angle);
+      this.updateMessage(intent.message);
+      this.voiceEngine.speak(intent.message);
+      return;
+    }
+
+    if (intent && intent.type === 'TRANSFORM_SCALE') {
+      if (!this.cadEngine.selectedEntity) {
+        this.showNotification('Please select an object to scale.');
+        return;
+      }
+      this.cadEngine.scaleEntity(intent.factor);
+      this.updateMessage(intent.message);
+      this.voiceEngine.speak(intent.message);
+      return;
+    }
+
+    if (intent && intent.type === 'DUPLICATE_ENTITY') {
+      if (!this.cadEngine.selectedEntity) {
+        this.showNotification('Please select an object to duplicate.');
+        return;
+      }
+      const clone = this.cadEngine.duplicateEntity();
+      if (clone) {
+        const msg = `Duplicated ${clone.name}. Positioned cleanly on plane.`;
+        this.updateMessage(msg);
+        this.voiceEngine.speak(msg);
+      }
+      return;
+    }
+
+    if (intent && intent.type === 'DELETE_ENTITY') {
+      if (!this.cadEngine.selectedEntity) {
+        this.showNotification('Please select an object to delete.');
+        return;
+      }
+      const name = this.cadEngine.selectedEntity.name;
+      this.cadEngine.removeEntity(this.cadEngine.selectedEntity.id);
+      const msg = `Deleted ${name}.`;
+      this.updateMessage(msg);
+      this.voiceEngine.speak(msg);
+      return;
+    }
+
+    if (intent && intent.type === 'SAVE_TO_VAULT') {
+      if (!this.cadEngine.selectedEntity) {
+        this.showNotification('Please select an object to save.');
+        return;
+      }
+      const ent = this.cadEngine.selectedEntity;
+      const thumb = this.cadEngine.captureThumbnail();
+      this.libraryManager.saveModel({
+        name: ent.name,
+        summary: ent.summary,
+        type: ent.type,
+        code: ent.code,
+        metrics: ent.metrics,
+        thumbnail: thumb
+      });
+      const msg = `Saved "${ent.name}" to 3D Vault.`;
+      this.updateMessage(msg);
+      this.voiceEngine.speak(msg);
+      this.showNotification(`✨ Saved "${ent.name}" to your 3D Vault!`);
+      return;
+    }
+
+    if (intent && intent.type === 'SELECT_ENTITY') {
+      const q = intent.query.toLowerCase();
+      const found = this.cadEngine.entities.find(e => 
+        e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)
+      ) || (q === 'next' ? this.cadEngine.getNextEntity() : null);
+      if (found) {
+        this.cadEngine.selectEntity(found);
+        this.cadEngine.focusEntity(found.id);
+        const msg = `Selected ${found.name}.`;
+        this.updateMessage(msg);
+        this.voiceEngine.speak(msg);
+      } else {
+        this.showNotification(`No object found matching "${intent.query}".`);
+      }
+      return;
+    }
+
     if (intent && intent.type === 'AMBIGUITY') {
       this.updateMessage(intent.question);
       this.voiceEngine.speak(intent.question);
@@ -900,6 +1052,7 @@ class VoxCADApp {
             ${ent.visible ? '👁️' : '🙈'}
           </button>
           <button class="entity-action-btn btn-focus" title="Focus Camera">🎯</button>
+          <button class="entity-action-btn btn-dup" title="Duplicate Object">📋</button>
           <button class="entity-action-btn btn-save" title="Save to Vault">💾</button>
           <button class="entity-action-btn btn-del" title="Delete Object">×</button>
         </div>
@@ -917,6 +1070,15 @@ class VoxCADApp {
       card.querySelector('.btn-focus').addEventListener('click', (e) => {
         e.stopPropagation();
         this.cadEngine.focusEntity(ent.id);
+      });
+
+      card.querySelector('.btn-dup').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.cadEngine.selectEntity(ent);
+        const clone = this.cadEngine.duplicateEntity(ent.id);
+        if (clone) {
+          this.showNotification(`✨ Duplicated "${clone.name}" beside original.`);
+        }
       });
 
       card.querySelector('.btn-save').addEventListener('click', (e) => {

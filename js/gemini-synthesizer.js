@@ -9,9 +9,11 @@ import * as THREE from 'three';
 export class GeminiSynthesizer {
   constructor(cadEngine) {
     this.cadEngine = cadEngine;
-    // Load key from localStorage or local gitignored config
-    this.apiKey = localStorage.getItem('voxcad_gemini_api_key') || '';
-    this.modelCandidates = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-latest'];
+    // Load key from localStorage, window.LOCAL_CONFIG, or local gitignored config
+    this.apiKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('voxcad_gemini_api_key') : '') 
+      || (typeof window !== 'undefined' ? window.LOCAL_CONFIG?.geminiApiKey : '') 
+      || '';
+    this.modelCandidates = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
     this.activeModel = 'gemini-3.5-flash';
 
     this.initLocalConfig();
@@ -22,7 +24,9 @@ export class GeminiSynthesizer {
       const mod = await import('../config.local.js').catch(() => null);
       if (mod?.LOCAL_CONFIG?.geminiApiKey) {
         this.apiKey = mod.LOCAL_CONFIG.geminiApiKey;
-        localStorage.setItem('voxcad_gemini_api_key', this.apiKey);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('voxcad_gemini_api_key', this.apiKey);
+        }
       }
     } catch (_) {}
   }
