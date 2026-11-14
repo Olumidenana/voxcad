@@ -56,6 +56,10 @@ export class CADEngine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.localClippingEnabled = true;
+
+    this.interiorMode = 'solid'; // 'solid' | 'xray' | 'cutaway'
+    this.clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -197,6 +201,50 @@ export class CADEngine {
     return this.autoRotate;
   }
 
+  cycleInteriorMode() {
+    const modes = ['solid', 'xray', 'cutaway'];
+    const nextIdx = (modes.indexOf(this.interiorMode) + 1) % modes.length;
+    this.interiorMode = modes[nextIdx];
+    this.applyInteriorMode();
+    return this.interiorMode;
+  }
+
+  applyInteriorMode() {
+    if (!this.activeMesh) return;
+
+    this.activeMesh.traverse(child => {
+      if (child.isMesh && child.material) {
+        const isExterior = child.userData.isExterior !== false && (child.userData.isExterior || !child.userData.isInterior);
+
+        if (this.interiorMode === 'solid') {
+          child.material.clippingPlanes = null;
+          child.material.clipShadows = false;
+          child.material.transparent = false;
+          child.material.opacity = 1.0;
+          child.material.depthWrite = true;
+        } else if (this.interiorMode === 'xray') {
+          child.material.clippingPlanes = null;
+          if (isExterior) {
+            child.material.transparent = true;
+            child.material.opacity = 0.22;
+            child.material.depthWrite = false;
+          } else {
+            child.material.transparent = false;
+            child.material.opacity = 1.0;
+            child.material.depthWrite = true;
+          }
+        } else if (this.interiorMode === 'cutaway') {
+          child.material.clippingPlanes = [this.clipPlane];
+          child.material.clipShadows = true;
+          child.material.transparent = false;
+          child.material.opacity = 1.0;
+          child.material.depthWrite = true;
+        }
+        child.material.needsUpdate = true;
+      }
+    });
+  }
+
   resetCamera() {
     if (this.activeMesh) {
       const box = new THREE.Box3().setFromObject(this.activeMesh);
@@ -293,12 +341,14 @@ export class CADEngine {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
-          child.material = this.getMaterial(this.activeMaterialName);
+          if (!child.material || child.material.name === 'default') {
+            child.material = this.getMaterial(this.activeMaterialName);
+          }
 
           const edges = new THREE.EdgesGeometry(child.geometry, 28);
           const line = new THREE.LineSegments(
             edges,
-            new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 1, transparent: true, opacity: 0.4 })
+            new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 1, transparent: true, opacity: 0.35 })
           );
           child.add(line);
         }
@@ -306,6 +356,7 @@ export class CADEngine {
 
       this.activeMesh = meshOrGroup;
       this.modelGroup.add(this.activeMesh);
+      this.applyInteriorMode();
 
       // Frame camera nicely
       this.resetCamera();

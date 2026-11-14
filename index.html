@@ -80,6 +80,10 @@
           <button id="btnToggleWireframe" class="pill-btn icon-only" title="Toggle Wireframe">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
           </button>
+          <button id="btnToggleInterior" class="pill-btn" title="Toggle Interior View (Solid / X-Ray / Cutaway Section)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v18"></path></svg>
+            <span style="margin-left: 4px;">Interior: <strong id="interiorModeLabel" style="color: #38bdf8;">Solid</strong></span>
+          </button>
           <button id="btnToggleGrid" class="pill-btn icon-only active" title="Toggle Grid Floor">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
           </button>
@@ -252,7 +256,17 @@
     <section class="command-deck">
       <div class="assistant-ticker" id="assistantTicker">
         <span class="ticker-prefix">VOX-AI</span>
-        <span class="ticker-message" id="aiMessage">Ready. Speak your design vision or type below.</span>
+        <span class="ticker-message" id="aiMessage">Ready. Speak your design vision or upload an image below.</span>
+      </div>
+
+      <!-- Image Staging Preview Chip -->
+      <div class="image-stage-chip hidden" id="imageStageChip" style="display: none;">
+        <img id="imageStageThumb" src="" alt="Reference Image" />
+        <div class="image-stage-meta">
+          <span id="imageStageName">reference.png</span>
+          <small id="imageStageHint">Multimodal Vision Active (Interior & Exterior)</small>
+        </div>
+        <button type="button" id="btnRemoveImage" class="chip-remove-btn" title="Remove reference image">×</button>
       </div>
 
       <div class="command-bar-wrapper">
@@ -266,11 +280,20 @@
           </svg>
         </button>
 
+        <input type="file" id="imageFileInput" accept="image/*" style="display: none;">
+        <button type="button" id="btnUploadImage" class="media-upload-btn" title="Upload reference photo for Image-to-3D replication">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </button>
+
         <form id="commandForm" class="command-form">
           <input 
             type="text" 
             id="commandInput" 
-            placeholder="Speak or type: 'Mercedes car', 'A tire', 'A circle', 'A coffee mug'..." 
+            placeholder="Speak, upload image, or type: 'Mercedes car with interior', 'Replicate image'..." 
             autocomplete="off"
           />
           <button type="submit" class="submit-btn" title="Generate 3D Design">
@@ -307,7 +330,7 @@
     </section>
 
     <!-- AI Generative Synthesis Settings Modal -->
-    <div class="modal-backdrop hidden" id="aiModal">
+    <div class="modal-backdrop hidden" id="aiModal" style="display: none;">
       <div class="modal-card">
         <div class="modal-header">
           <div class="modal-title">

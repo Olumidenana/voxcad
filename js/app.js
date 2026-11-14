@@ -1,5 +1,6 @@
 /**
  * VoxCAD — Conversational & Parametric 3D Studio Orchestrator
+ * Full Multimodal Vision-to-3D, Interior/Exterior Cutaway, and True Lingua Franca
  */
 
 import { CADEngine } from './cad-engine.js';
@@ -17,6 +18,7 @@ class VoxCADApp {
     this.geminiSynthesizer = null;
 
     this.isAwaitingFollowup = false;
+    this.stagedImage = null;
 
     this.dom = {
       container: document.getElementById('viewportContainer'),
@@ -59,6 +61,8 @@ class VoxCADApp {
       btnToggleTurntable: document.getElementById('btnToggleTurntable'),
       btnToggleWireframe: document.getElementById('btnToggleWireframe'),
       btnToggleGrid: document.getElementById('btnToggleGrid'),
+      btnToggleInterior: document.getElementById('btnToggleInterior'),
+      interiorModeLabel: document.getElementById('interiorModeLabel'),
       btnResetCamera: document.getElementById('btnResetCamera'),
       standbyOverlay: document.getElementById('standbyOverlay'),
       btnTestMic: document.getElementById('btnTestMic'),
@@ -71,7 +75,13 @@ class VoxCADApp {
       btnSaveApiKey: document.getElementById('btnSaveApiKey'),
       btnClearApiKey: document.getElementById('btnClearApiKey'),
       btnToggleKeyVisibility: document.getElementById('btnToggleKeyVisibility'),
-      aiTestStatus: document.getElementById('aiTestStatus')
+      aiTestStatus: document.getElementById('aiTestStatus'),
+      btnUploadImage: document.getElementById('btnUploadImage'),
+      imageFileInput: document.getElementById('imageFileInput'),
+      imageStageChip: document.getElementById('imageStageChip'),
+      imageStageThumb: document.getElementById('imageStageThumb'),
+      imageStageName: document.getElementById('imageStageName'),
+      btnRemoveImage: document.getElementById('btnRemoveImage')
     };
 
     this.init();
@@ -88,10 +98,16 @@ class VoxCADApp {
       this.setupSubsystems();
       this.setupUI();
 
+      // Ensure modal is strictly hidden on boot
+      if (this.dom.aiModal) {
+        this.dom.aiModal.style.display = 'none';
+        this.dom.aiModal.classList.add('hidden');
+      }
+
       // Start 100% BLANK
       this.featureTree.clear();
       this.showStandbyState(true);
-      this.updateMessage('Canvas ready. Speak or type: "Mercedes car", "A tire", "A circle", "A coffee mug"...');
+      this.updateMessage('Canvas ready. Speak, upload an image, or type any 3D concept.');
     } catch (err) {
       console.error('VoxCAD failed to initialize:', err);
       this.showNotification(`Error: ${err.message}`);
@@ -202,6 +218,56 @@ class VoxCADApp {
     this.dom.aiTestStatus.classList.remove('hidden');
   }
 
+  stageImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      this.showNotification('Please select a valid image file (PNG, JPG, WebP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const fullData = e.target.result;
+      const base64Data = fullData.split(',')[1];
+      this.stagedImage = {
+        name: file.name,
+        mimeType: file.type,
+        data: base64Data
+      };
+
+      if (this.dom.imageStageThumb) {
+        this.dom.imageStageThumb.src = fullData;
+      }
+      if (this.dom.imageStageName) {
+        this.dom.imageStageName.textContent = file.name;
+      }
+      if (this.dom.imageStageChip) {
+        this.dom.imageStageChip.style.display = 'flex';
+        this.dom.imageStageChip.classList.remove('hidden');
+      }
+      if (this.dom.btnUploadImage) {
+        this.dom.btnUploadImage.classList.add('has-file');
+      }
+
+      this.updateMessage(`Image "${file.name}" staged. Click send or say: "Replicate in 3D with full interior and exterior".`);
+      this.dom.commandInput.placeholder = 'Click send or speak: "Replicate in 3D with interior"...';
+      this.dom.commandInput.focus();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  clearStagedImage() {
+    this.stagedImage = null;
+    if (this.dom.imageFileInput) this.dom.imageFileInput.value = '';
+    if (this.dom.imageStageChip) {
+      this.dom.imageStageChip.style.display = 'none';
+      this.dom.imageStageChip.classList.add('hidden');
+    }
+    if (this.dom.btnUploadImage) {
+      this.dom.btnUploadImage.classList.remove('has-file');
+    }
+    this.dom.commandInput.placeholder = "Speak, upload image, or type: 'Mercedes car', 'A tire'...";
+  }
+
   setupUI() {
     // Drawer Toggles
     this.dom.sideDrawer.classList.add('collapsed');
@@ -276,6 +342,7 @@ class VoxCADApp {
           this.dom.aiTestStatus.classList.add('hidden');
         }
         if (this.dom.aiModal) {
+          this.dom.aiModal.style.display = 'flex';
           this.dom.aiModal.classList.remove('hidden');
         }
       });
@@ -283,13 +350,17 @@ class VoxCADApp {
 
     if (this.dom.btnCloseAiModal) {
       this.dom.btnCloseAiModal.addEventListener('click', () => {
-        this.dom.aiModal.classList.add('hidden');
+        if (this.dom.aiModal) {
+          this.dom.aiModal.style.display = 'none';
+          this.dom.aiModal.classList.add('hidden');
+        }
       });
     }
 
     if (this.dom.aiModal) {
       this.dom.aiModal.addEventListener('click', (e) => {
         if (e.target === this.dom.aiModal) {
+          this.dom.aiModal.style.display = 'none';
           this.dom.aiModal.classList.add('hidden');
         }
       });
@@ -318,9 +389,12 @@ class VoxCADApp {
           this.updateAiKeyStatus();
           this.showAiModalStatus('✨ Verified! Gemini 3D Engine is online and ready.', true);
           setTimeout(() => {
-            this.dom.aiModal.classList.add('hidden');
-            this.showNotification('✨ Gemini 3D Engine active! Speak or type any concept to generate.');
-          }, 1200);
+            if (this.dom.aiModal) {
+              this.dom.aiModal.style.display = 'none';
+              this.dom.aiModal.classList.add('hidden');
+            }
+            this.showNotification('✨ Gemini 3D Engine active! Speak, upload images, or type any concept.');
+          }, 1000);
         } catch (err) {
           this.showAiModalStatus(`Verification failed: ${err.message}`, false);
         }
@@ -334,16 +408,76 @@ class VoxCADApp {
         this.updateAiKeyStatus();
         this.showAiModalStatus('Key cleared. Offline procedural modeler active.', false);
         setTimeout(() => {
-          this.dom.aiModal.classList.add('hidden');
+          if (this.dom.aiModal) {
+            this.dom.aiModal.style.display = 'none';
+            this.dom.aiModal.classList.add('hidden');
+          }
         }, 800);
+      });
+    }
+
+    // Image Upload & Drag-and-Drop
+    if (this.dom.btnUploadImage && this.dom.imageFileInput) {
+      this.dom.btnUploadImage.addEventListener('click', () => {
+        this.dom.imageFileInput.click();
+      });
+
+      this.dom.imageFileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) this.stageImageFile(file);
+      });
+    }
+
+    if (this.dom.btnRemoveImage) {
+      this.dom.btnRemoveImage.addEventListener('click', () => {
+        this.clearStagedImage();
+      });
+    }
+
+    // Canvas Drag and Drop
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      document.body.classList.add('drag-over');
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+        document.body.classList.remove('drag-over');
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      document.body.classList.remove('drag-over');
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) {
+        this.stageImageFile(file);
+      }
+    });
+
+    // Interior / Cutaway Toggle
+    if (this.dom.btnToggleInterior) {
+      this.dom.btnToggleInterior.addEventListener('click', () => {
+        const mode = this.cadEngine.cycleInteriorMode();
+        const modeConfigs = {
+          'solid': { text: 'Solid', color: '#38bdf8', desc: 'Standard solid rendering' },
+          'xray': { text: 'X-Ray Shell', color: '#f59e0b', desc: 'Outer body transparent (internal mechanics visible)' },
+          'cutaway': { text: 'Cutaway Half', color: '#f43f5e', desc: 'Cross-section slice through internal chambers' }
+        };
+        const conf = modeConfigs[mode] || modeConfigs['solid'];
+        if (this.dom.interiorModeLabel) {
+          this.dom.interiorModeLabel.textContent = conf.text;
+          this.dom.interiorModeLabel.style.color = conf.color;
+        }
+        this.updateMessage(`Interior view: ${conf.text} (${conf.desc})`);
       });
     }
 
     this.dom.commandForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = this.dom.commandInput.value.trim();
-      if (text) {
-        this.executeCommand(text);
+      if (text || this.stagedImage) {
+        this.executeCommand(text || 'Replicate this image into 3D');
         this.dom.commandInput.value = '';
       }
     });
@@ -410,6 +544,7 @@ class VoxCADApp {
 
     this.dom.btnClearAll.addEventListener('click', () => {
       this.featureTree.clear();
+      this.clearStagedImage();
       this.showStandbyState(true);
       this.updateMessage('Canvas reset to blank.');
     });
@@ -431,7 +566,8 @@ class VoxCADApp {
         this.updateMessage('Undid last feature.');
       }
 
-      if (e.key === 'Escape' && this.dom.aiModal && !this.dom.aiModal.classList.contains('hidden')) {
+      if (e.key === 'Escape' && this.dom.aiModal) {
+        this.dom.aiModal.style.display = 'none';
         this.dom.aiModal.classList.add('hidden');
       }
     });
@@ -456,8 +592,8 @@ class VoxCADApp {
   }
 
   async executeCommand(rawText) {
-    if (!rawText) return;
-    const lower = rawText.toLowerCase().trim();
+    if (!rawText && !this.stagedImage) return;
+    const lower = (rawText || '').toLowerCase().trim();
 
     if (this.isAwaitingFollowup && (lower.includes('no') || lower.includes('good') || lower.includes('fine') || lower.includes('perfect') || lower.includes('done') || lower.includes('stop'))) {
       this.isAwaitingFollowup = false;
@@ -471,10 +607,8 @@ class VoxCADApp {
     const selectedFace = this.cadEngine.selectedFace;
     const intent = this.intentParser.parse(rawText, selectedFace, this.featureTree.features);
 
-    if (!intent) return;
-
     // Direct UI, View, Material, or History commands
-    if (intent.type === 'CAMERA_VIEW') {
+    if (intent && intent.type === 'CAMERA_VIEW') {
       if (intent.view === 'reset') {
         this.cadEngine.resetCamera();
       } else {
@@ -487,28 +621,28 @@ class VoxCADApp {
       return;
     }
 
-    if (intent.type === 'TOGGLE_WIREFRAME') {
+    if (intent && intent.type === 'TOGGLE_WIREFRAME') {
       const wire = this.cadEngine.toggleWireframe();
       this.dom.btnToggleWireframe.classList.toggle('active', wire);
       this.updateMessage(wire ? 'Wireframe mode' : 'Solid shaded mode');
       return;
     }
 
-    if (intent.type === 'TOGGLE_GRID') {
+    if (intent && intent.type === 'TOGGLE_GRID') {
       const active = this.cadEngine.toggleGrid();
       this.dom.btnToggleGrid.classList.toggle('active', active);
       this.updateMessage(active ? 'Grid floor visible' : 'Grid floor hidden');
       return;
     }
 
-    if (intent.type === 'TOGGLE_AUTOROTATE') {
+    if (intent && intent.type === 'TOGGLE_AUTOROTATE') {
       const rot = this.cadEngine.toggleAutoRotate();
       this.dom.btnToggleTurntable.classList.toggle('active', rot);
       this.updateMessage(rot ? 'Showcase rotation enabled' : 'Rotation paused');
       return;
     }
 
-    if (intent.type === 'SET_MATERIAL') {
+    if (intent && intent.type === 'SET_MATERIAL') {
       this.cadEngine.setMaterial(intent.material);
       document.querySelectorAll('.mat-card').forEach(c => {
         c.classList.toggle('active', c.getAttribute('data-mat') === intent.material);
@@ -519,41 +653,53 @@ class VoxCADApp {
       return;
     }
 
-    if (intent.type === 'UNDO') {
+    if (intent && intent.type === 'UNDO') {
       const undone = this.featureTree.undo();
       this.updateMessage(undone ? 'Undid last feature.' : 'Nothing to undo.');
       this.voiceEngine.speak(undone ? 'Undid last feature' : 'Nothing to undo');
       return;
     }
 
-    if (intent.type === 'REDO') {
+    if (intent && intent.type === 'REDO') {
       const redone = this.featureTree.redo();
       this.updateMessage(redone ? 'Redid feature.' : 'Nothing to redo.');
       return;
     }
 
-    if (intent.type === 'CLEAR_ALL') {
+    if (intent && intent.type === 'CLEAR_ALL') {
       this.featureTree.clear();
+      this.clearStagedImage();
       this.showStandbyState(true);
       this.updateMessage('Canvas reset to blank.');
       this.voiceEngine.speak('Canvas cleared');
       return;
     }
 
-    if (intent.type === 'AMBIGUITY') {
+    if (intent && intent.type === 'AMBIGUITY') {
       this.updateMessage(intent.question);
       this.voiceEngine.speak(intent.question);
       return;
     }
 
     // -------------------------------------------------------------
-    // GENERATIVE 3D SYNTHESIS: Lingua Franca (Model Anything)
+    // GENERATIVE 3D SYNTHESIS: Lingua Franca (Text & Multimodal Image)
     // -------------------------------------------------------------
-    // If Gemini API Key is connected, synthesize bespoke 3D geometry dynamically!
     if (this.geminiSynthesizer.hasApiKey()) {
-      this.updateMessage(`✨ Gemini is synthesizing 3D geometry for "${rawText}"...`);
+      const isImageReplication = !!this.stagedImage;
+      const actionLabel = isImageReplication 
+        ? `✨ Gemini Vision is analyzing "${this.stagedImage.name}" for interior & exterior 3D replication...`
+        : `✨ Gemini is sculpting 3D geometry for "${rawText}"...`;
+
+      this.updateMessage(actionLabel);
+
       try {
-        const result = await this.geminiSynthesizer.synthesizeConcept(rawText);
+        const result = await this.geminiSynthesizer.synthesizeConcept(rawText, this.stagedImage);
+        
+        // Clear staged image chip on success
+        if (this.stagedImage) {
+          this.clearStagedImage();
+        }
+
         this.featureTree.addOperation({
           type: 'GENAI_DYNAMIC_MODEL',
           group: result.group,
@@ -564,7 +710,7 @@ class VoxCADApp {
         this.showStandbyState(false);
         this.cadEngine.clearSelection();
 
-        const voiceText = `Created ${result.title}. Metrics and manual sliders are ready on the side panel. Would you like any adjustments?`;
+        const voiceText = `Created ${result.title}. Metrics and sliders are ready on the side panel. Use the Interior button at top to inspect internal components. Would you like any adjustments?`;
         this.updateMessage(result.summary || `Synthesized ${result.title}`);
 
         this.isAwaitingFollowup = true;
@@ -581,8 +727,8 @@ class VoxCADApp {
       }
     }
 
-    // Offline Procedural Engine (Handles all anatomy, fine art, automotive, architecture, mechanical, and universal harmonic manifolds)
-    if (intent.type.startsWith('CREATE_') || intent.type.startsWith('CUT_') || intent.type.startsWith('EXTRUDE_')) {
+    // Offline Procedural Engine
+    if (intent && (intent.type.startsWith('CREATE_') || intent.type.startsWith('CUT_') || intent.type.startsWith('EXTRUDE_'))) {
       this.featureTree.addOperation({
         ...intent,
         description: intent.message
@@ -635,52 +781,6 @@ class VoxCADApp {
       node.innerHTML = `
         <div class="feature-node-info">
           <span class="feature-node-title">#${index + 1} ${feat.displayTitle || feat.type.replace('CREATE_', '').replace(/_/g, ' ')}</span>
-          <span class="feature-node-desc">${feat.description || 'Feature'}</span>
-        </div>
-        <button class="feature-delete-btn" title="Delete" data-id="${feat.id}">×</button>
-      `;
-
-      node.querySelector('.feature-delete-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.featureTree.removeOperation(feat.id);
-      });
-
-      list.appendChild(node);
-    });
-  }
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  new VoxCADApp();
-});
-
-  updateMessage(msg) {
-    this.dom.aiMessage.textContent = msg;
-  }
-
-  showNotification(text) {
-    this.dom.notificationText.textContent = text;
-    this.dom.notificationBanner.classList.remove('hidden');
-    setTimeout(() => {
-      this.dom.notificationBanner.classList.add('hidden');
-    }, 7000);
-  }
-
-  renderFeatureTree(features) {
-    const list = this.dom.featureTreeList;
-    list.innerHTML = '';
-
-    if (!features || features.length === 0) {
-      list.appendChild(this.dom.emptyTreeState);
-      return;
-    }
-
-    features.forEach((feat, index) => {
-      const node = document.createElement('div');
-      node.className = 'feature-node';
-      node.innerHTML = `
-        <div class="feature-node-info">
-          <span class="feature-node-title">#${index + 1} ${feat.type.replace('CREATE_', '').replace(/_/g, ' ')}</span>
           <span class="feature-node-desc">${feat.description || 'Feature'}</span>
         </div>
         <button class="feature-delete-btn" title="Delete" data-id="${feat.id}">×</button>
