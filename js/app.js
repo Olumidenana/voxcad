@@ -121,10 +121,7 @@ class VoxCADApp {
       this.setupUI();
 
       // Ensure modal is strictly hidden on boot
-      if (this.dom.aiModal) {
-        this.dom.aiModal.style.display = 'none';
-        this.dom.aiModal.classList.add('hidden');
-      }
+      this.closeAiModal();
 
       // Initial Library render
       this.renderLibrary(this.libraryManager.getLibrary());
@@ -267,6 +264,26 @@ class VoxCADApp {
     if (this.dom.aiBtnLabel) {
       this.dom.aiBtnLabel.textContent = hasKey ? '✨ AI Online' : '✨ AI Key';
     }
+  }
+
+  openAiModal() {
+    if (!this.dom.aiModal) return;
+    if (this.dom.inputApiKey) {
+      this.dom.inputApiKey.value = this.geminiSynthesizer.apiKey || '';
+    }
+    if (this.dom.aiTestStatus) {
+      this.dom.aiTestStatus.classList.add('hidden');
+    }
+    this.dom.aiModal.classList.add('open', 'active');
+    this.dom.aiModal.classList.remove('hidden');
+    this.dom.aiModal.style.cssText = 'display: flex !important; pointer-events: auto !important; width: 100% !important; height: 100% !important; z-index: 1000 !important;';
+  }
+
+  closeAiModal() {
+    if (!this.dom.aiModal) return;
+    this.dom.aiModal.classList.remove('open', 'active');
+    this.dom.aiModal.classList.add('hidden');
+    this.dom.aiModal.style.cssText = 'display: none !important; pointer-events: none !important; width: 0 !important; height: 0 !important; z-index: -1 !important;';
   }
 
   showAiModalStatus(msg, isSuccess) {
@@ -500,33 +517,20 @@ class VoxCADApp {
 
     if (this.dom.btnAiKey) {
       this.dom.btnAiKey.addEventListener('click', () => {
-        if (this.dom.inputApiKey) {
-          this.dom.inputApiKey.value = this.geminiSynthesizer.apiKey || '';
-        }
-        if (this.dom.aiTestStatus) {
-          this.dom.aiTestStatus.classList.add('hidden');
-        }
-        if (this.dom.aiModal) {
-          this.dom.aiModal.style.display = 'flex';
-          this.dom.aiModal.classList.remove('hidden');
-        }
+        this.openAiModal();
       });
     }
 
     if (this.dom.btnCloseAiModal) {
       this.dom.btnCloseAiModal.addEventListener('click', () => {
-        if (this.dom.aiModal) {
-          this.dom.aiModal.style.display = 'none';
-          this.dom.aiModal.classList.add('hidden');
-        }
+        this.closeAiModal();
       });
     }
 
     if (this.dom.aiModal) {
       this.dom.aiModal.addEventListener('click', (e) => {
         if (e.target === this.dom.aiModal) {
-          this.dom.aiModal.style.display = 'none';
-          this.dom.aiModal.classList.add('hidden');
+          this.closeAiModal();
         }
       });
     }
@@ -554,10 +558,7 @@ class VoxCADApp {
           this.updateAiKeyStatus();
           this.showAiModalStatus('✨ Verified! Gemini 3D Engine is online and ready.', true);
           setTimeout(() => {
-            if (this.dom.aiModal) {
-              this.dom.aiModal.style.display = 'none';
-              this.dom.aiModal.classList.add('hidden');
-            }
+            this.closeAiModal();
             this.showNotification('✨ Gemini 3D Engine active! Speak, upload images, or type any concept.');
           }, 1000);
         } catch (err) {
@@ -573,10 +574,7 @@ class VoxCADApp {
         this.updateAiKeyStatus();
         this.showAiModalStatus('Key cleared. Offline procedural modeler active.', false);
         setTimeout(() => {
-          if (this.dom.aiModal) {
-            this.dom.aiModal.style.display = 'none';
-            this.dom.aiModal.classList.add('hidden');
-          }
+          this.closeAiModal();
         }, 800);
       });
     }
@@ -739,9 +737,8 @@ class VoxCADApp {
         this.voiceEngine.startListening();
       }
 
-      if (e.key === 'Escape' && this.dom.aiModal) {
-        this.dom.aiModal.style.display = 'none';
-        this.dom.aiModal.classList.add('hidden');
+      if (e.key === 'Escape') {
+        this.closeAiModal();
       }
     });
 

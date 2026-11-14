@@ -1188,21 +1188,31 @@ html, body {
 }
 
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(3, 7, 18, 0.75);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.modal-backdrop.hidden {
   display: none !important;
   pointer-events: none !important;
+  position: fixed;
+  inset: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  z-index: -1;
+}
+
+.modal-backdrop.open,
+.modal-backdrop.active {
+  display: flex !important;
+  pointer-events: auto !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(8px);
+  align-items: center;
+  justify-content: center;
+  z-index: 1000 !important;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modal-card {
