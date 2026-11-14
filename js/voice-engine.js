@@ -1,6 +1,6 @@
 /**
- * VoxCAD — Voice & Speech Engine
- * Precision Lexicon Conditioning & Acoustic Feedback
+ * VoxCAD — Voice & Speech Recognition Engine
+ * Bulletproof Speech Capture, Acoustic Tones & CAD Lexicon Filter
  */
 
 export class VoiceEngine {
@@ -10,17 +10,16 @@ export class VoiceEngine {
     this.isSupported = false;
     this.ttsEnabled = true;
 
-    // Audio Analysis for Visualizer
-    this.audioContext = null;
+    // Web Audio Context for Acoustic Feedback & Waveform
+    this.audioCtx = null;
     this.analyser = null;
-    this.microphoneStream = null;
-    this.animFrameId = null;
+    this.mediaStream = null;
 
     // Callbacks
     this.onTranscriptUpdate = null;
     this.onCommandFinalized = null;
     this.onStatusChange = null;
-    this.onAudioLevel = null;
+    this.onError = null;
 
     // CAD Specialized Lexicon Phonetic Map
     this.phoneticMap = [
@@ -32,10 +31,10 @@ export class VoiceEngine {
       { pattern: /\b(cylinder|cilinder)\b/gi, replacement: "cylinder" },
       { pattern: /\b(millimeters?|mils?)\b/gi, replacement: "mm" },
       { pattern: /\b(centimeters?)\b/gi, replacement: "cm" },
-      { pattern: /\b(radius|radial)\b/gi, replacement: "radius" },
-      { pattern: /\b(diameter|die-ameter)\b/gi, replacement: "diameter" },
-      { pattern: /\b(bevel|bevell)\b/gi, replacement: "bevel" },
-      { pattern: /\b(draft\s*angle)\b/gi, replacement: "draft angle" }
+      { pattern: /\b(stealt|stelt)\b/gi, replacement: "stealth" },
+      { pattern: /\b(dron|droan)\b/gi, replacement: "drone" },
+      { pattern: /\b(towr|towar)\b/gi, replacement: "tower" },
+      { pattern: /\b(reactor|core)\b/gi, replacement: "reactor core" }
     ];
 
     this.initSpeechRecognition();
@@ -52,8 +51,8 @@ export class VoiceEngine {
 
       this.recognition.onstart = () => {
         this.isListening = true;
+        this.playAcousticCue(587.33, 0.1); // High D5 chime
         if (this.onStatusChange) this.onStatusChange('listening');
-        this.startAudioVisualization();
       };
 
       this.recognition.onresult = (event) => {
@@ -69,41 +68,51 @@ export class VoiceEngine {
           }
         }
 
-        const rawText = (finalTranscript || interimTranscript).trim();
-        const conditionedText = this.applyCADLexiconConditioning(rawText);
+        const raw = (finalTranscript || interimTranscript).trim();
+        const conditioned = this.applyCADLexicon(raw);
 
         if (this.onTranscriptUpdate) {
-          this.onTranscriptUpdate(conditionedText, !!finalTranscript);
+          this.onTranscriptUpdate(conditioned, !!finalTranscript);
         }
 
         if (finalTranscript && this.onCommandFinalized) {
-          this.onCommandFinalized(conditionedText);
+          this.onCommandFinalized(conditioned);
         }
       };
 
       this.recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error);
+        console.warn('Speech Recognition error event:', event.error);
         if (event.error === 'not-allowed') {
-          this.speak('Microphone access was denied. Please allow microphone permissions in your browser.');
+          const msg = 'Microphone access is blocked. Please click the lock or camera icon in your address bar and allow microphone permissions.';
+          if (this.onError) this.onError(msg);
+          this.speak(msg);
+        } else if (event.error === 'no-speech') {
+          // Normal silence, don't crash
+        } else {
+          if (this.onError) this.onError(`Voice status: ${event.error}`);
         }
         this.stopListening();
       };
 
       this.recognition.onend = () => {
-        this.isListening = false;
-        if (this.onStatusChange) this.onStatusChange('idle');
-        this.stopAudioVisualization();
+        if (this.isListening) {
+          // Restart if user intended to keep listening
+          try {
+            this.recognition.start();
+          } catch (e) {
+            this.isListening = false;
+            if (this.onStatusChange) this.onStatusChange('idle');
+          }
+        } else {
+          if (this.onStatusChange) this.onStatusChange('idle');
+        }
       };
     } else {
-      console.warn('Web Speech API is not supported in this browser. Fallback to manual typing.');
+      console.warn('Web Speech API not natively available in this browser.');
     }
   }
 
-  /**
-   * Applies Domain Lexicon Conditioning: ensures terms like "counterbore", "fillet",
-   * and exact numbers/units don't get misrecognized as casual conversation words.
-   */
-  applyCADLexiconConditioning(text) {
+  applyCADLexicon(text) {
     if (!text) return '';
     let result = text;
     for (const rule of this.phoneticMap) {
@@ -112,30 +121,49 @@ export class VoiceEngine {
     return result;
   }
 
-  startListening() {
+  async startListening() {
     if (!this.isSupported) {
-      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Brave, or type in the manual prompt.');
+      if (this.onError) {
+        this.onError('Speech Recognition is not supported by your browser. Use Chrome, Edge, or Brave, or type below.');
+      }
       return;
     }
+
     if (this.isListening) return;
 
+    // Explicitly request mic permission first so user gets browser dialog if needed
     try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (err) {
+      const msg = 'Please allow microphone access in your browser to use voice commands.';
+      if (this.onError) this.onError(msg);
+      return;
+    }
+
+    try {
+      this.isListening = true;
       this.recognition.start();
     } catch (e) {
-      console.error('Error starting speech recognition:', e);
+      console.error('Failed to start recognition:', e);
     }
   }
 
   stopListening() {
     if (!this.isListening) return;
+    this.isListening = false;
+    this.playAcousticCue(392.00, 0.1); // Low G4 chime
     try {
       this.recognition.stop();
-    } catch (e) {
-      console.error('Error stopping speech recognition:', e);
+    } catch (e) {}
+
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(t => t.stop());
+      this.mediaStream = null;
     }
-    this.isListening = false;
+
     if (this.onStatusChange) this.onStatusChange('idle');
-    this.stopAudioVisualization();
   }
 
   toggleListening() {
@@ -146,85 +174,37 @@ export class VoiceEngine {
     }
   }
 
-  /**
-   * Real-time microphone audio visualizer
-   */
-  async startAudioVisualization() {
+  playAcousticCue(freq, duration) {
     try {
-      if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      if (!this.audioCtx) this.audioCtx = new AudioContext();
+      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
 
-      this.microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const source = this.audioContext.createMediaStreamSource(this.microphoneStream);
-
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 64;
-      source.connect(this.analyser);
-
-      const bufferLength = this.analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      const updateLoop = () => {
-        if (!this.isListening) return;
-        this.analyser.getByteFrequencyData(dataArray);
-
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / bufferLength; // 0 to 255
-
-        if (this.onAudioLevel) {
-          this.onAudioLevel(average / 255);
-        }
-
-        this.animFrameId = requestAnimationFrame(updateLoop);
-      };
-
-      updateLoop();
-    } catch (err) {
-      console.warn('Could not initialize audio visualizer stream:', err);
-    }
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.08, this.audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      osc.start();
+      osc.stop(this.audioCtx.currentTime + duration);
+    } catch (e) {}
   }
 
-  stopAudioVisualization() {
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
-    }
-    if (this.microphoneStream) {
-      this.microphoneStream.getTracks().forEach(track => track.stop());
-      this.microphoneStream = null;
-    }
-    if (this.onAudioLevel) {
-      this.onAudioLevel(0);
-    }
-  }
-
-  /**
-   * Spoken Assistant Feedback (Text-to-Speech)
-   */
   speak(text) {
     if (!this.ttsEnabled || !window.speechSynthesis) return;
-
-    window.speechSynthesis.cancel(); // Stop any pending utterance
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.05;
     utterance.pitch = 1.0;
-    
-    // Pick clean English voice if available
+
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
-    if (preferredVoice) utterance.voice = preferredVoice;
+    const voice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
+    if (voice) utterance.voice = voice;
 
     window.speechSynthesis.speak(utterance);
-  }
-
-  setTTSEnabled(enabled) {
-    this.ttsEnabled = enabled;
   }
 }

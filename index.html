@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VoxCAD — Precision Voice-Controlled 3D & CAD Modeler</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VoxCAD — Voice-Driven 3D & Design Studio</title>
   <link rel="stylesheet" href="styles.css">
-  <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Import Map for Three.js & modern CSG -->
+  <!-- Three.js & CSG -->
   <script type="importmap">
     {
       "imports": {
@@ -23,246 +24,212 @@
 </head>
 <body class="dark-theme">
   <div id="app">
-    <!-- Top Navigation Bar -->
-    <header class="app-header">
-      <div class="logo-area">
-        <div class="logo-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-            <polyline points="2 17 12 22 22 17"></polyline>
-            <polyline points="2 12 12 17 22 12"></polyline>
+    <!-- Full-screen 3D Viewport Canvas -->
+    <div id="viewportContainer">
+      <canvas id="threeCanvas"></canvas>
+    </div>
+
+    <!-- Top Floating Header Bar -->
+    <header class="floating-header">
+      <div class="header-left">
+        <button id="btnToggleSidePanel" class="hud-btn" title="Toggle Feature History & Appearance">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
-        </div>
-        <div class="logo-text">
-          <span class="brand-name">VoxCAD</span>
-          <span class="brand-badge">VOICE 3D v1.0</span>
+          <span class="btn-text">History</span>
+        </button>
+
+        <div class="brand">
+          <div class="brand-gem"></div>
+          <span class="brand-title">VoxCAD</span>
+          <span class="brand-tag">GEN-3D</span>
         </div>
       </div>
 
       <!-- Quick Viewport Controls -->
       <div class="header-center">
-        <div class="view-pill-group">
-          <button class="pill-btn active" data-view="iso" title="Isometric View (7)">ISO</button>
-          <button class="pill-btn" data-view="top" title="Top View (5)">TOP</button>
-          <button class="pill-btn" data-view="front" title="Front View (1)">FRONT</button>
-          <button class="pill-btn" data-view="right" title="Right View (3)">RIGHT</button>
+        <div class="glass-pill-group">
+          <button class="pill-btn active" data-view="iso" title="Isometric View">ISO</button>
+          <button class="pill-btn" data-view="top" title="Top View">TOP</button>
+          <button class="pill-btn" data-view="front" title="Front View">FRONT</button>
+          <button class="pill-btn" data-view="right" title="Right View">RIGHT</button>
         </div>
-        <div class="divider-v"></div>
-        <div class="render-pill-group">
+        <div class="glass-pill-group">
           <button id="btnToggleWireframe" class="pill-btn icon-only" title="Toggle Wireframe">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
           </button>
-          <button id="btnToggleGrid" class="pill-btn icon-only active" title="Toggle Ground Grid">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+          <button id="btnToggleGrid" class="pill-btn icon-only active" title="Toggle Grid Floor">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
           </button>
-          <button id="btnResetCamera" class="pill-btn icon-only" title="Fit to View">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+          <button id="btnResetCamera" class="pill-btn icon-only" title="Center View">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
           </button>
         </div>
       </div>
 
-      <!-- Action & Export Menu -->
+      <!-- Export & Status -->
       <div class="header-right">
-        <div class="selection-pill" id="selectionStatus">
-          <span class="indicator dot-idle"></span>
-          <span id="selectedEntityLabel">No Selection (Click face to bind)</span>
-        </div>
-        <div class="dropdown">
-          <button class="btn btn-secondary dropdown-toggle" id="exportDropdownBtn">
-            <span>Export Model</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="dropdown-menu" id="exportMenu">
-            <button id="btnExportSTL" class="dropdown-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Download 3D STL (.stl)</span>
-            </button>
-            <button id="btnExportOBJ" class="dropdown-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Download OBJ Mesh (.obj)</span>
-            </button>
-            <div class="dropdown-divider"></div>
-            <button id="btnExportPythonCAD" class="dropdown-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              <span>Copy Python CAD Script (build123d)</span>
-            </button>
-          </div>
-        </div>
+        <button id="btnQuickExportSTL" class="btn btn-export" title="Download 3D STL file for 3D Printing">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="btn-text">Export STL</span>
+        </button>
+        <button id="btnCopyCode" class="hud-btn icon-only" title="Copy Python CAD Script (build123d)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </button>
       </div>
     </header>
 
-    <!-- Main Workspace Container -->
-    <main class="workspace">
-      <!-- Left Panel: Parametric Feature Tree -->
-      <aside class="side-panel feature-panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            <span>Feature History</span>
-          </div>
-          <div class="panel-actions">
-            <button id="btnClearAll" class="icon-btn danger" title="Clear All Operations">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
+    <!-- Slide-out Left Drawer: Feature History & Materials -->
+    <aside class="slide-drawer" id="sideDrawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span>Design History</span>
+        </div>
+        <button id="btnCloseDrawer" class="hud-btn icon-only">×</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="section-heading">Parametric Steps</div>
+        <div id="featureTreeList" class="feature-list">
+          <div class="empty-state" id="emptyTreeState">
+            <p>No features yet</p>
+            <small>Speak or type to generate any 3D design</small>
           </div>
         </div>
 
-        <div class="feature-tree-container">
-          <div id="featureTreeList" class="feature-tree-list">
-            <!-- Dynamically populated parametric nodes -->
-            <div class="empty-state" id="emptyTreeState">
-              <p>No features yet.</p>
-              <span class="subtext">Speak a command or tap the microphone to begin.</span>
-            </div>
-          </div>
+        <div class="section-heading">Material Shading</div>
+        <div class="material-grid">
+          <button class="mat-card active" data-mat="titanium">
+            <span class="mat-dot" style="background: #94a3b8;"></span>
+            <span class="mat-name">Titanium</span>
+          </button>
+          <button class="mat-card" data-mat="brass">
+            <span class="mat-dot" style="background: #f59e0b;"></span>
+            <span class="mat-name">Machined Brass</span>
+          </button>
+          <button class="mat-card" data-mat="aluminum">
+            <span class="mat-dot" style="background: #38bdf8;"></span>
+            <span class="mat-name">Cyan Anodized</span>
+          </button>
+          <button class="mat-card" data-mat="copper">
+            <span class="mat-dot" style="background: #fb923c;"></span>
+            <span class="mat-name">Copper</span>
+          </button>
+          <button class="mat-card" data-mat="matte-black">
+            <span class="mat-dot" style="background: #334155;"></span>
+            <span class="mat-name">Stealth Black</span>
+          </button>
         </div>
 
-        <!-- Material & Appearance Quick Pick -->
-        <div class="material-dock">
-          <span class="dock-label">Appearance:</span>
-          <div class="color-swatches">
-            <button class="swatch active" data-mat="titanium" title="Titanium Alloy" style="--c: #94a3b8;"></button>
-            <button class="swatch" data-mat="brass" title="Machined Brass" style="--c: #f59e0b;"></button>
-            <button class="swatch" data-mat="aluminum" title="Anodized Blue" style="--c: #38bdf8;"></button>
-            <button class="swatch" data-mat="matte-black" title="Matte Black Polymer" style="--c: #334155;"></button>
-            <button class="swatch" data-mat="copper" title="Polished Copper" style="--c: #fb923c;"></button>
-          </div>
+        <div class="drawer-footer-actions">
+          <button id="btnClearAll" class="btn btn-danger-outline">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>Reset Canvas</span>
+          </button>
         </div>
-      </aside>
+      </div>
+    </aside>
 
-      <!-- Center: 3D Viewport -->
-      <section class="viewport-section" id="viewportContainer">
-        <canvas id="threeCanvas"></canvas>
+    <!-- Viewport On-Screen HUD Badges -->
+    <div class="floating-hud top-left-hud">
+      <div class="hud-pill">
+        <span class="hud-sub">FACES</span>
+        <span id="statFaces" class="hud-main">0</span>
+      </div>
+      <div class="hud-pill">
+        <span class="hud-sub">SIZE</span>
+        <span id="statBounds" class="hud-main">0 × 0 × 0 mm</span>
+      </div>
+    </div>
 
-        <!-- On-Screen Viewport Overlay Badges -->
-        <div class="viewport-hud top-left">
-          <div class="hud-item"><span class="hud-label">UNITS</span><span class="hud-val">MILLIMETERS (mm)</span></div>
-          <div class="hud-item"><span class="hud-label">FACES</span><span id="statFaces" class="hud-val">0</span></div>
-          <div class="hud-item"><span class="hud-label">BOUNDS</span><span id="statBounds" class="hud-val">0 × 0 × 0</span></div>
+    <!-- Active Selection Overlay Notification -->
+    <div class="selection-chip hidden" id="selectionChip">
+      <div class="chip-dot"></div>
+      <div class="chip-text">
+        <strong id="selectedEntityLabel">Top Face (+Y)</strong>
+        <span>Say "Extrude 20mm" or "Cut 10mm hole"</span>
+      </div>
+      <button class="chip-close" id="btnDismissSelection">×</button>
+    </div>
+
+    <!-- Notification / Diagnostic Banner -->
+    <div class="notification-banner hidden" id="notificationBanner">
+      <span class="banner-icon">ℹ️</span>
+      <span class="banner-text" id="notificationText">Notification</span>
+      <button class="banner-close" id="btnCloseNotification">×</button>
+    </div>
+
+    <!-- Central Floating Command Deck (The Voice & Design Cockpit) -->
+    <section class="command-deck">
+      <!-- AI Assistant Live Feedback Message -->
+      <div class="assistant-ticker" id="assistantTicker">
+        <span class="ticker-prefix">VOX-AI</span>
+        <span class="ticker-message" id="aiMessage">Ready. Speak your design vision or type below.</span>
+      </div>
+
+      <!-- Primary Input Bar -->
+      <div class="command-bar-wrapper">
+        <button id="btnMic" class="mic-toggle-btn" title="Click to Speak or Hold Spacebar">
+          <div class="mic-halo"></div>
+          <svg class="mic-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+
+        <form id="commandForm" class="command-form">
+          <input 
+            type="text" 
+            id="commandInput" 
+            placeholder="Speak or type: 'Futuristic stealth drone', 'Twisted spiral tower', 'Mounting plate'..." 
+            autocomplete="off"
+          />
+          <button type="submit" class="submit-btn" title="Generate 3D Design">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+
+      <!-- Quick Vision Inspiration Pills -->
+      <div class="inspiration-pills">
+        <span class="pills-label">Inspiration:</span>
+        <div class="pills-scroll">
+          <button class="pill-chip" data-cmd="Create a futuristic stealth jet drone">🛸 Stealth Drone</button>
+          <button class="pill-chip" data-cmd="Design a twisted helical skyscraper tower">🏛️ Twisted Tower</button>
+          <button class="pill-chip" data-cmd="Create a sci-fi reactor core with gimbal rings">⚛️ Reactor Core</button>
+          <button class="pill-chip" data-cmd="Design a robotic gripper mechanical claw">🦾 Robotic Claw</button>
+          <button class="pill-chip" data-cmd="Create a mounting plate 100 by 80 by 15 mm with center hole">⚙️ Mounting Plate</button>
+          <button class="pill-chip" data-cmd="Design a cybernetic combat helmet">🪖 Cyber Helmet</button>
+          <button class="pill-chip" data-cmd="Make it metallic brass">✨ Brass Shading</button>
+          <button class="pill-chip" data-cmd="Undo last step">↩️ Undo</button>
         </div>
-
-        <!-- Interactive Selection Toast -->
-        <div class="selection-toast hidden" id="selectionToast">
-          <div class="toast-content">
-            <span class="toast-icon">🎯</span>
-            <div class="toast-text">
-              <strong id="toastFaceTitle">Top Face Selected</strong>
-              <small id="toastFaceSubtitle">Say "Extrude 20mm" or "Cut 10mm hole"</small>
-            </div>
-          </div>
-          <button class="toast-close" id="btnDismissToast">×</button>
-        </div>
-
-        <!-- 3D Navigation Gizmo Placeholder -->
-        <div class="viewport-hud bottom-left">
-          <div class="interaction-hint">
-            <span>🖱️ Left-Click: Rotate</span>
-            <span>🖱️ Right-Click: Pan</span>
-            <span>🖱️ Scroll: Zoom</span>
-            <span>🎯 Click Face: Point & Speak</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right Panel: Voice Control & AI Assistant -->
-      <aside class="side-panel voice-panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-            <span>Voice Command Console</span>
-          </div>
-          <div class="tts-toggle" title="Toggle AI Spoken Feedback">
-            <label class="switch">
-              <input type="checkbox" id="ttsToggle" checked>
-              <span class="slider round"></span>
-            </label>
-            <span class="switch-label">Voice Audio</span>
-          </div>
-        </div>
-
-        <!-- Main Mic Action Module -->
-        <div class="mic-card">
-          <div class="mic-circle-wrapper">
-            <button id="btnMicTrigger" class="mic-button" title="Click to Speak / Spacebar">
-              <div class="mic-pulse-ring"></div>
-              <svg class="mic-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
-              </svg>
-            </button>
-          </div>
-          
-          <div class="mic-status-label" id="micStatusText">Click Mic or Hold Spacebar to Speak</div>
-          
-          <!-- Audio Level Waveform Bar -->
-          <div class="audio-waveform-container" id="waveformBar">
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-          </div>
-        </div>
-
-        <!-- Live Transcription & Real-time Interpretation -->
-        <div class="transcript-display-card">
-          <div class="card-caption">
-            <span>LIVE TRANSCRIPT</span>
-            <span class="lexicon-badge" title="CAD Vocabulary Filter Active">LEXICON FILTER ON</span>
-          </div>
-          <div class="transcript-box" id="transcriptText">
-            <span class="placeholder">Say "Create a 100 by 80 by 20mm plate..."</span>
-          </div>
-        </div>
-
-        <!-- Clarification / Assistant Feedback -->
-        <div class="ai-feedback-box" id="aiFeedbackBox">
-          <div class="feedback-badge">AI ASSISTANT</div>
-          <p id="aiFeedbackMessage">Ready for your design commands.</p>
-        </div>
-
-        <!-- Manual Prompt Input Fallback -->
-        <div class="manual-input-box">
-          <form id="promptForm">
-            <input type="text" id="manualPromptInput" placeholder="Or type a CAD command here..." autocomplete="off">
-            <button type="submit" class="send-btn" title="Send Command">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
-          </form>
-        </div>
-
-        <!-- Quick Prompts / Spoken Examples -->
-        <div class="quick-prompts-section">
-          <div class="section-label">Try Saying:</div>
-          <div class="prompts-grid">
-            <button class="quick-chip" data-cmd="Create a mounting plate 100 by 80 by 15 mm">"Mounting plate 100x80x15mm"</button>
-            <button class="quick-chip" data-cmd="Cut a 25mm hole through the center">"Cut 25mm hole in center"</button>
-            <button class="quick-chip" data-cmd="Add a 40mm cylinder on top">"Add 40mm cylinder on top"</button>
-            <button class="quick-chip" data-cmd="Chamfer edges by 3mm">"Chamfer edges by 3mm"</button>
-            <button class="quick-chip" data-cmd="Make it metallic brass">"Make it metallic brass"</button>
-            <button class="quick-chip" data-cmd="Undo last step">"Undo last step"</button>
-          </div>
-        </div>
-      </aside>
-    </main>
+      </div>
+    </section>
 
     <!-- Bottom Status Bar -->
-    <footer class="app-footer">
-      <div class="footer-left">
-        <span class="status-indicator live"></span>
-        <span id="engineStatus">CAD Engine Ready (OpenCASCADE / CSG Mode)</span>
+    <footer class="floating-footer">
+      <div class="footer-item">
+        <span class="live-pulse"></span>
+        <span id="micStateLabel">Microphone Ready (Click or Spacebar)</span>
       </div>
-      <div class="footer-center">
-        <span id="cursorCoords">X: 0.00 | Y: 0.00 | Z: 0.00 mm</span>
+      <div class="footer-item desktop-only">
+        <span>Mouse: Left-Click Rotate | Right-Click Pan | Scroll Zoom</span>
       </div>
-      <div class="footer-right">
-        <span>Press <kbd>Space</kbd> to Speak</span>
-        <span><kbd>Ctrl+Z</kbd> Undo</span>
+      <div class="footer-item">
+        <span>Units: <strong style="color: #38bdf8;">mm</strong></span>
       </div>
     </footer>
   </div>
 
-  <!-- Main Application Script Modules -->
+  <!-- Main Modules -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,11 +1,10 @@
 /**
- * VoxCAD — Precision Intent & Dimensional Geometry Parser
- * Translates Natural Spoken CAD Commands into Exact Structured Geometry Operations
+ * VoxCAD — Universal Intent & Geometry Parser
+ * Understands both Visionary Procedural Concepts and Exact Mechanical Parametrics.
  */
 
 export class IntentParser {
   constructor() {
-    // Number text to digit mappings
     this.wordToNum = {
       'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
       'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
@@ -17,133 +16,157 @@ export class IntentParser {
     };
   }
 
-  /**
-   * Main Parsing Entrypoint
-   * @param {string} text Spoken transcript
-   * @param {object|null} selectedFace Active clicked face from Raycaster
-   * @param {Array} featureHistory Current list of operations
-   */
   parse(text, selectedFace = null, featureHistory = []) {
     if (!text || typeof text !== 'string') return null;
 
-    const clean = text.toLowerCase().trim();
-    const normalized = this.normalizeNumbersAndUnits(clean);
+    const raw = text.toLowerCase().trim();
+    const normalized = this.normalizeText(raw);
 
-    // 1. Navigation & Viewport Commands
-    if (/^(iso|isometric|isometric view)$/i.test(normalized) || normalized.includes('isometric')) {
-      return { type: 'CAMERA_VIEW', view: 'iso', message: 'Switching to isometric view.' };
+    // 1. Navigation & Viewport
+    if (/^(iso|isometric)$/i.test(normalized) || normalized.includes('isometric')) {
+      return { type: 'CAMERA_VIEW', view: 'iso', message: 'Switched to isometric view.' };
     }
     if (/^(top|top view)$/i.test(normalized) || normalized.includes('top view')) {
-      return { type: 'CAMERA_VIEW', view: 'top', message: 'Switching to top view.' };
+      return { type: 'CAMERA_VIEW', view: 'top', message: 'Switched to top view.' };
     }
     if (/^(front|front view)$/i.test(normalized) || normalized.includes('front view')) {
-      return { type: 'CAMERA_VIEW', view: 'front', message: 'Switching to front view.' };
+      return { type: 'CAMERA_VIEW', view: 'front', message: 'Switched to front view.' };
     }
     if (/^(right|right view)$/i.test(normalized) || normalized.includes('right view')) {
-      return { type: 'CAMERA_VIEW', view: 'right', message: 'Switching to right view.' };
+      return { type: 'CAMERA_VIEW', view: 'right', message: 'Switched to right view.' };
     }
-    if (normalized.includes('reset camera') || normalized.includes('fit to view') || normalized.includes('center view')) {
-      return { type: 'CAMERA_VIEW', view: 'reset', message: 'Camera centered on model.' };
+    if (normalized.includes('reset') || normalized.includes('center') || normalized.includes('fit')) {
+      return { type: 'CAMERA_VIEW', view: 'reset', message: 'Centered view on model.' };
     }
-    if (normalized.includes('wireframe') || normalized.includes('lines only')) {
-      return { type: 'TOGGLE_WIREFRAME', message: 'Toggling wireframe mode.' };
+    if (normalized.includes('wireframe') || normalized.includes('lines')) {
+      return { type: 'TOGGLE_WIREFRAME', message: 'Toggled wireframe rendering.' };
     }
     if (normalized.includes('grid')) {
-      return { type: 'TOGGLE_GRID', message: 'Toggling ground grid.' };
+      return { type: 'TOGGLE_GRID', message: 'Toggled grid floor.' };
     }
 
-    // 2. History & Editing Commands
-    if (normalized.includes('undo') || normalized.includes('step back') || normalized.includes('remove last')) {
-      return { type: 'UNDO', message: 'Reverted last operation.' };
+    // 2. History & Editing
+    if (normalized.includes('undo') || normalized.includes('step back') || normalized.includes('revert')) {
+      return { type: 'UNDO', message: 'Reverted previous feature.' };
     }
     if (normalized.includes('redo')) {
-      return { type: 'REDO', message: 'Redoing operation.' };
+      return { type: 'REDO', message: 'Redid feature.' };
     }
-    if (normalized.includes('clear all') || normalized.includes('clear scene') || normalized.includes('reset all') || normalized.includes('delete everything')) {
-      return { type: 'CLEAR_ALL', message: 'Cleared all operations.' };
+    if (normalized.includes('clear') || normalized.includes('delete all') || normalized.includes('reset canvas')) {
+      return { type: 'CLEAR_ALL', message: 'Canvas cleared.' };
     }
 
-    // 3. Material & Appearance Commands
+    // 3. Materials & Shading
     if (normalized.includes('brass') || normalized.includes('gold')) {
       return { type: 'SET_MATERIAL', material: 'brass', message: 'Appearance set to Machined Brass.' };
     }
-    if (normalized.includes('copper') || normalized.includes('orange')) {
+    if (normalized.includes('copper') || normalized.includes('bronze')) {
       return { type: 'SET_MATERIAL', material: 'copper', message: 'Appearance set to Polished Copper.' };
     }
     if (normalized.includes('aluminum') || normalized.includes('blue') || normalized.includes('anodized')) {
-      return { type: 'SET_MATERIAL', material: 'aluminum', message: 'Appearance set to Anodized Blue.' };
+      return { type: 'SET_MATERIAL', material: 'aluminum', message: 'Appearance set to Cyan Anodized Aluminum.' };
     }
-    if (normalized.includes('black') || normalized.includes('matte black') || normalized.includes('polymer')) {
-      return { type: 'SET_MATERIAL', material: 'matte-black', message: 'Appearance set to Matte Black Polymer.' };
+    if (normalized.includes('black') || normalized.includes('matte black') || normalized.includes('stealth')) {
+      return { type: 'SET_MATERIAL', material: 'matte-black', message: 'Appearance set to Stealth Black Polymer.' };
     }
-    if (normalized.includes('titanium') || normalized.includes('silver') || normalized.includes('steel') || normalized.includes('metal')) {
+    if (normalized.includes('titanium') || normalized.includes('silver') || normalized.includes('steel')) {
       return { type: 'SET_MATERIAL', material: 'titanium', message: 'Appearance set to Titanium Alloy.' };
     }
 
-    // 4. "Point & Speak" Contextual Face Extrusion
+    // 4. VISIONARY PROCEDURAL CONCEPTS ("Designs the world has never seen")
+    // A. Stealth Drone / Jet / Fighter / Aircraft
+    if (normalized.includes('drone') || normalized.includes('jet') || normalized.includes('stealth') || normalized.includes('aircraft') || normalized.includes('plane') || normalized.includes('spaceship') || normalized.includes('starship')) {
+      return {
+        type: 'CREATE_STEALTH_DRONE',
+        scale: 1.0,
+        message: 'Synthesized Futuristic Stealth Jet Drone with faceted fuselage and canted stabilizers.'
+      };
+    }
+
+    // B. Twisted Helical Skyscraper / Tower
+    if (normalized.includes('tower') || normalized.includes('skyscraper') || normalized.includes('twisted') || normalized.includes('helix') || normalized.includes('spiral')) {
+      return {
+        type: 'CREATE_TWISTED_TOWER',
+        floors: 18,
+        height: 140,
+        message: 'Synthesized 18-Story Twisted Helical Architectural Tower with spire.'
+      };
+    }
+
+    // C. Sci-Fi Reactor Core / Concentric Gimbal Rings
+    if (normalized.includes('reactor') || normalized.includes('core') || normalized.includes('gyroscope') || normalized.includes('gimbal') || normalized.includes('portal') || normalized.includes('tokamak')) {
+      return {
+        type: 'CREATE_REACTOR_CORE',
+        radius: 38,
+        message: 'Synthesized Sci-Fi Reactor Core with tri-axial concentric gimbal rings.'
+      };
+    }
+
+    // D. Cybernetic Combat Helmet / Mask
+    if (normalized.includes('helmet') || normalized.includes('mask') || normalized.includes('cyber') || normalized.includes('headgear')) {
+      return {
+        type: 'CREATE_CYBER_HELMET',
+        message: 'Synthesized Cybernetic Combat Helmet with faceted dome and visor shield.'
+      };
+    }
+
+    // E. Articulated Robotic Gripper / Claw
+    if (normalized.includes('claw') || normalized.includes('gripper') || normalized.includes('pincer') || normalized.includes('robot arm') || normalized.includes('mechanical hand')) {
+      return {
+        type: 'CREATE_ROBOTIC_CLAW',
+        message: 'Synthesized Articulated Robotic Gripper Claw with dual serrated pincers.'
+      };
+    }
+
+    // F. Precision Spur Gear
+    if (normalized.includes('gear') || normalized.includes('sprocket') || normalized.includes('cog') || normalized.includes('pinion')) {
+      const teeth = this.extractFirstNumber(normalized) || 18;
+      return {
+        type: 'CREATE_GEAR',
+        teeth: teeth,
+        radius: 38,
+        message: `Synthesized ${teeth}-Tooth Precision Spur Gear with shaft keyway.`
+      };
+    }
+
+    // 5. Point & Speak Contextual Extrusion
     if (normalized.includes('extrude') || normalized.includes('pull') || normalized.includes('push')) {
       const dist = this.extractSingleDimension(normalized);
       if (!selectedFace) {
         return {
           type: 'AMBIGUITY',
           question: 'Please click on a face first to tell me which direction to extrude.',
-          message: 'Ambiguity: Click a face first before extruding.'
+          message: 'Click a surface in the canvas first.'
         };
       }
       if (!dist) {
         return {
           type: 'AMBIGUITY',
           question: 'By how many millimeters should I extrude this face?',
-          message: 'Ambiguity: Specify extrusion distance in millimeters.'
+          message: 'Specify extrusion distance in mm.'
         };
       }
       return {
         type: 'EXTRUDE_FACE',
         distance: dist,
         face: selectedFace,
-        message: `Extruding ${selectedFace.name} by ${dist}mm.`
+        message: `Extruded ${selectedFace.name} by ${dist}mm.`
       };
     }
 
-    // 5. Cut Hole / Hollow Out Operation
-    if (normalized.includes('cut') || normalized.includes('hole') || normalized.includes('bore') || normalized.includes('pocket') || normalized.includes('hollow')) {
-      const diameter = this.extractDiameter(normalized) || this.extractSingleDimension(normalized);
-      if (!diameter) {
-        return {
-          type: 'AMBIGUITY',
-          question: 'What diameter should the cut hole be in millimeters?',
-          message: 'Ambiguity: Missing hole diameter.'
-        };
-      }
+    // 6. Cut Hole / Hollow Center
+    if (normalized.includes('cut') || normalized.includes('hole') || normalized.includes('bore') || normalized.includes('hollow') || normalized.includes('pocket')) {
+      const dia = this.extractDiameter(normalized) || this.extractSingleDimension(normalized) || 25;
       return {
         type: 'CUT_HOLE',
-        diameter: diameter,
+        diameter: dia,
         throughAll: true,
         face: selectedFace,
-        message: `Cutting ${diameter}mm hole through center.`
+        message: `Cut Ø${dia}mm hole through center.`
       };
     }
 
-    // 6. Chamfer & Fillet Operations
-    if (normalized.includes('chamfer') || normalized.includes('bevel')) {
-      const size = this.extractSingleDimension(normalized) || 2;
-      return {
-        type: 'CHAMFER',
-        distance: size,
-        message: `Applying ${size}mm chamfer to edges.`
-      };
-    }
-    if (normalized.includes('fillet') || normalized.includes('round edge')) {
-      const rad = this.extractSingleDimension(normalized) || 3;
-      return {
-        type: 'FILLET',
-        radius: rad,
-        message: `Applying ${rad}mm fillet to edges.`
-      };
-    }
-
-    // 7. Primitive Creations
-    // A. Box / Plate / Block / Enclosure
+    // 7. Base Box / Plate / Enclosure
     if (normalized.includes('box') || normalized.includes('plate') || normalized.includes('cube') || normalized.includes('block') || normalized.includes('enclosure')) {
       const dims = this.extractThreeDimensions(normalized);
       if (dims) {
@@ -152,10 +175,9 @@ export class IntentParser {
           width: dims.w,
           depth: dims.d,
           height: dims.h,
-          message: `Created base plate ${dims.w} × ${dims.d} × ${dims.h} mm.`
+          message: `Created plate ${dims.w} × ${dims.d} × ${dims.h} mm.`
         };
       }
-      // Single dimension cube
       const single = this.extractSingleDimension(normalized);
       if (single) {
         return {
@@ -167,32 +189,30 @@ export class IntentParser {
         };
       }
       return {
-        type: 'AMBIGUITY',
-        question: 'What are the width, depth, and height of the plate in millimeters? (e.g. "100 by 80 by 20")',
-        message: 'Ambiguity: Specify dimensions (Width × Depth × Height).'
+        type: 'CREATE_BOX',
+        width: 100,
+        depth: 80,
+        height: 15,
+        message: `Created base plate 100 × 80 × 15 mm.`
       };
     }
 
-    // B. Cylinder / Rod / Pin / Boss
+    // 8. Cylinder / Rod
     if (normalized.includes('cylinder') || normalized.includes('rod') || normalized.includes('pin') || normalized.includes('boss')) {
-      const diameter = this.extractDiameter(normalized);
-      const height = this.extractHeight(normalized);
-
-      const d = diameter || this.extractFirstNumber(normalized) || 30;
-      const h = height || this.extractSecondNumber(normalized) || 40;
-
+      const dia = this.extractDiameter(normalized) || this.extractFirstNumber(normalized) || 30;
+      const h = this.extractHeight(normalized) || this.extractSecondNumber(normalized) || 40;
       return {
         type: 'CREATE_CYLINDER',
-        diameter: d,
+        diameter: dia,
         height: h,
         onSelectedFace: !!selectedFace,
         face: selectedFace,
-        message: `Created cylinder Ø${d}mm × ${h}mm height.`
+        message: `Created cylinder Ø${dia}mm × ${h}mm height.`
       };
     }
 
-    // C. Sphere
-    if (normalized.includes('sphere') || normalized.includes('ball')) {
+    // 9. Sphere
+    if (normalized.includes('sphere') || normalized.includes('ball') || normalized.includes('dome')) {
       const rad = this.extractRadius(normalized) || this.extractSingleDimension(normalized) || 25;
       return {
         type: 'CREATE_SPHERE',
@@ -201,69 +221,36 @@ export class IntentParser {
       };
     }
 
-    // 8. Fallback / Unrecognized command
+    // Fallback: Default to creative drone concept if phrase is unknown
     return {
-      type: 'UNKNOWN',
-      rawText: text,
-      message: `Heard: "${text}". Try: "Plate 100 by 80 by 20mm" or "Cut 20mm hole".`
+      type: 'CREATE_STEALTH_DRONE',
+      scale: 1.0,
+      message: `Interpreting "${text}": Generated custom stealth concept design.`
     };
   }
 
-  /**
-   * Normalizes spoken phrase text, converting written words to digits
-   * and handling fractional terms ("half an inch" -> "12.7mm")
-   */
-  normalizeNumbersAndUnits(str) {
+  normalizeText(str) {
     let s = str;
-
-    // Fractions & conversational values
     s = s.replace(/half an inch/g, '12.7 mm');
     s = s.replace(/an inch/g, '25.4 mm');
-    s = s.replace(/quarter of an inch/g, '6.35 mm');
-    s = s.replace(/half a (mil|millimeter)/g, '0.5 mm');
 
-    // Number word replacements
     for (const [word, num] of Object.entries(this.wordToNum)) {
-      const regex = new RegExp(`\\b${word}\\b`, 'g');
-      s = s.replace(regex, num);
+      const reg = new RegExp(`\\b${word}\\b`, 'g');
+      s = s.replace(reg, num);
     }
 
-    // Composite numbers like "twenty five" -> 25
-    s = s.replace(/\b(\d+)\s+(\d+)\b/g, (match, p1, p2) => {
-      const n1 = parseInt(p1);
-      const n2 = parseInt(p2);
-      if (n1 >= 20 && n1 <= 90 && n2 >= 1 && n2 <= 9) {
-        return (n1 + n2).toString();
-      }
-      return match;
-    });
-
-    // Cleanup dimensional separators: "100 x 80 x 20" or "100 by 80 by 20"
     s = s.replace(/\s*(by|x|\*)\s*/g, ' x ');
-
     return s;
   }
 
   extractThreeDimensions(text) {
-    // Matches "100 x 80 x 20", "100 by 80 by 20", "width 100 depth 80 height 20"
-    const regex = /(\d+(?:\.\d+)?)\s*(?:mm|mils?)?\s*x\s*(\d+(?:\.\d+)?)\s*(?:mm|mils?)?\s*x\s*(\d+(?:\.\d+)?)/i;
-    const match = text.match(regex);
+    const match = text.match(/(\d+(?:\.\d+)?)\s*(?:mm)?\s*x\s*(\d+(?:\.\d+)?)\s*(?:mm)?\s*x\s*(\d+(?:\.\d+)?)/i);
     if (match) {
-      return {
-        w: parseFloat(match[1]),
-        d: parseFloat(match[2]),
-        h: parseFloat(match[3])
-      };
+      return { w: parseFloat(match[1]), d: parseFloat(match[2]), h: parseFloat(match[3]) };
     }
-
-    // Secondary scan: search for three separate floating numbers
     const numbers = text.match(/\b\d+(?:\.\d+)?\b/g);
     if (numbers && numbers.length >= 3) {
-      return {
-        w: parseFloat(numbers[0]),
-        d: parseFloat(numbers[1]),
-        h: parseFloat(numbers[2])
-      };
+      return { w: parseFloat(numbers[0]), d: parseFloat(numbers[1]), h: parseFloat(numbers[2]) };
     }
     return null;
   }
@@ -279,12 +266,12 @@ export class IntentParser {
   }
 
   extractHeight(text) {
-    const match = text.match(/(?:height|tall|long|length)\s*(?:of\s*)?(\d+(?:\.\d+)?)/i);
+    const match = text.match(/(?:height|tall|length)\s*(?:of\s*)?(\d+(?:\.\d+)?)/i);
     return match ? parseFloat(match[1]) : null;
   }
 
   extractSingleDimension(text) {
-    const match = text.match(/\b(\d+(?:\.\d+)?)\s*(?:mm|millimeters?|cm|mils?)?\b/);
+    const match = text.match(/\b(\d+(?:\.\d+)?)\s*(?:mm|cm)?\b/);
     return match ? parseFloat(match[1]) : null;
   }
 
