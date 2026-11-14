@@ -83,153 +83,120 @@ export class FeatureTree {
     this.evaluateGeometry();
   }
 
+  buildMeshForFeature(feat) {
+    const mat = this.cadEngine.getMaterial();
+    if (feat.type === 'GENAI_DYNAMIC_MODEL' && feat.group) {
+      return feat.group.clone();
+    }
+
+    switch (feat.type) {
+      // 1. ANATOMY & BIOLOGY
+      case 'CREATE_FACE':
+        return this.buildHumanFace();
+      case 'CREATE_EYE':
+        return this.buildHumanEye();
+      case 'CREATE_DNA':
+        return this.buildDNAHelix();
+
+      // 2. FINE ART & SCULPTURE
+      case 'CREATE_ART_SCULPTURE':
+        return this.buildModernArtSculpture();
+      case 'CREATE_GEMSTONE':
+        return this.buildFacetedGemstone();
+      case 'CREATE_CROWN':
+        return this.buildRoyalCrown();
+      case 'CREATE_GUITAR':
+        return this.buildGuitar();
+      case 'CREATE_SWORD':
+        return this.buildSword();
+
+      // 3. ARCHITECTURE & NATURE
+      case 'CREATE_CASTLE':
+      case 'CREATE_TOWER':
+        return this.buildCastleTower();
+      case 'CREATE_TREE':
+        return this.buildTree();
+
+      // 4. VEHICLES & AUTOMOTIVE
+      case 'CREATE_MERCEDES_CAR':
+      case 'CREATE_CAR':
+        return this.buildMercedesCar();
+      case 'CREATE_TIRE':
+      case 'CREATE_WHEEL':
+        return this.buildAutomotiveTire(feat.radius || 35);
+      case 'CREATE_HYPERCAR':
+        return this.buildHypercar();
+
+      // 5. EVERYDAY & INDUSTRIAL
+      case 'CREATE_CIRCLE':
+      case 'CREATE_DISC':
+        return this.buildCircularDisc(feat.diameter || 60, feat.thickness || 8);
+      case 'CREATE_MUG':
+      case 'CREATE_CUP':
+        return this.buildCoffeeMug();
+      case 'CREATE_CHAIR':
+        return this.buildChair();
+      case 'CREATE_TABLE':
+        return this.buildTable();
+      case 'CREATE_SMARTPHONE':
+        return this.buildSmartphone();
+      case 'CREATE_BOLT':
+        return this.buildBolt();
+
+      // 6. SCI-FI & AEROSPACE
+      case 'CREATE_STEALTH_DRONE':
+        return this.buildStealthDrone();
+      case 'CREATE_TWISTED_TOWER':
+        return this.buildTwistedTower();
+      case 'CREATE_REACTOR_CORE':
+        return this.buildReactorCore();
+      case 'CREATE_CYBER_HELMET':
+        return this.buildCyberHelmet();
+      case 'CREATE_ROBOTIC_CLAW':
+        return this.buildRoboticClaw();
+      case 'CREATE_GEAR':
+        return this.buildGear(feat.teeth || 18, feat.radius || 38);
+      case 'CREATE_SATELLITE':
+        return this.buildSatellite();
+
+      // 7. MECHANICAL CAD PRIMITIVES
+      case 'CREATE_PLATE_WITH_HOLE':
+      case 'CUT_HOLE':
+        return this.buildMountingPlate(feat.width || 100, feat.depth || 80, feat.height || 15, feat.diameter || 24);
+      case 'CREATE_BOX': {
+        const w = feat.width || 100, d = feat.depth || 80, h = feat.height || 15;
+        const geo = new THREE.BoxGeometry(w, h, d);
+        geo.translate(0, h / 2, 0);
+        return new THREE.Mesh(geo, mat);
+      }
+      case 'CREATE_CYLINDER': {
+        const r = (feat.diameter || 32) / 2, h = feat.height || 45;
+        const geo = new THREE.CylinderGeometry(r, r, h, 36);
+        geo.translate(0, h / 2, 0);
+        return new THREE.Mesh(geo, mat);
+      }
+      case 'CREATE_SPHERE': {
+        const r = feat.radius || 25;
+        const geo = new THREE.SphereGeometry(r, 32, 24);
+        geo.translate(0, r, 0);
+        return new THREE.Mesh(geo, mat);
+      }
+
+      default:
+        return this.buildUniversalHarmonicManifold(feat.prompt || feat.displayTitle || 'Sculptural Form');
+    }
+  }
+
   evaluateGeometry() {
     if (this.features.length === 0) {
-      this.cadEngine.setActiveMesh(null);
       if (this.onMetricsUpdated) this.onMetricsUpdated(null);
       return;
     }
 
     const rootGroup = new THREE.Group();
-    const mat = this.cadEngine.getMaterial();
-
     for (let i = 0; i < this.features.length; i++) {
       const feat = this.features[i];
-      let meshOrGroup = null;
-
-      // Check if it is a Dynamic AI Generated 3D Model
-      if (feat.type === 'GENAI_DYNAMIC_MODEL' && feat.group) {
-        meshOrGroup = feat.group.clone();
-      } else {
-        switch (feat.type) {
-          // 1. ANATOMY & BIOLOGY
-          case 'CREATE_FACE':
-            meshOrGroup = this.buildHumanFace();
-            break;
-          case 'CREATE_EYE':
-            meshOrGroup = this.buildHumanEye();
-            break;
-          case 'CREATE_DNA':
-            meshOrGroup = this.buildDNAHelix();
-            break;
-
-          // 2. FINE ART & SCULPTURE
-          case 'CREATE_ART_SCULPTURE':
-            meshOrGroup = this.buildModernArtSculpture();
-            break;
-          case 'CREATE_GEMSTONE':
-            meshOrGroup = this.buildFacetedGemstone();
-            break;
-          case 'CREATE_CROWN':
-            meshOrGroup = this.buildRoyalCrown();
-            break;
-          case 'CREATE_GUITAR':
-            meshOrGroup = this.buildGuitar();
-            break;
-          case 'CREATE_SWORD':
-            meshOrGroup = this.buildSword();
-            break;
-
-          // 3. ARCHITECTURE & NATURE
-          case 'CREATE_CASTLE':
-          case 'CREATE_TOWER':
-            meshOrGroup = this.buildCastleTower();
-            break;
-          case 'CREATE_TREE':
-            meshOrGroup = this.buildTree();
-            break;
-
-          // 4. VEHICLES & AUTOMOTIVE
-          case 'CREATE_MERCEDES_CAR':
-          case 'CREATE_CAR':
-            meshOrGroup = this.buildMercedesCar();
-            break;
-          case 'CREATE_TIRE':
-          case 'CREATE_WHEEL':
-            meshOrGroup = this.buildAutomotiveTire(feat.radius || 35);
-            break;
-          case 'CREATE_HYPERCAR':
-            meshOrGroup = this.buildHypercar();
-            break;
-
-          // 5. EVERYDAY & INDUSTRIAL
-          case 'CREATE_CIRCLE':
-          case 'CREATE_DISC':
-            meshOrGroup = this.buildCircularDisc(feat.diameter || 60, feat.thickness || 8);
-            break;
-          case 'CREATE_MUG':
-          case 'CREATE_CUP':
-            meshOrGroup = this.buildCoffeeMug();
-            break;
-          case 'CREATE_CHAIR':
-            meshOrGroup = this.buildChair();
-            break;
-          case 'CREATE_TABLE':
-            meshOrGroup = this.buildTable();
-            break;
-          case 'CREATE_SMARTPHONE':
-            meshOrGroup = this.buildSmartphone();
-            break;
-          case 'CREATE_BOLT':
-            meshOrGroup = this.buildBolt();
-            break;
-
-          // 6. SCI-FI & AEROSPACE
-          case 'CREATE_STEALTH_DRONE':
-            meshOrGroup = this.buildStealthDrone();
-            break;
-          case 'CREATE_TWISTED_TOWER':
-            meshOrGroup = this.buildTwistedTower();
-            break;
-          case 'CREATE_REACTOR_CORE':
-            meshOrGroup = this.buildReactorCore();
-            break;
-          case 'CREATE_CYBER_HELMET':
-            meshOrGroup = this.buildCyberHelmet();
-            break;
-          case 'CREATE_ROBOTIC_CLAW':
-            meshOrGroup = this.buildRoboticClaw();
-            break;
-          case 'CREATE_GEAR':
-            meshOrGroup = this.buildGear(feat.teeth || 18, feat.radius || 38);
-            break;
-          case 'CREATE_SATELLITE':
-            meshOrGroup = this.buildSatellite();
-            break;
-
-          // 7. MECHANICAL CAD PRIMITIVES
-          case 'CREATE_PLATE_WITH_HOLE':
-          case 'CUT_HOLE':
-            meshOrGroup = this.buildMountingPlate(feat.width || 100, feat.depth || 80, feat.height || 15, feat.diameter || 24);
-            break;
-          case 'CREATE_BOX': {
-            const w = feat.width || 100, d = feat.depth || 80, h = feat.height || 15;
-            const geo = new THREE.BoxGeometry(w, h, d);
-            geo.translate(0, h / 2, 0);
-            meshOrGroup = new THREE.Mesh(geo, mat);
-            break;
-          }
-          case 'CREATE_CYLINDER': {
-            const r = (feat.diameter || 32) / 2, h = feat.height || 45;
-            const geo = new THREE.CylinderGeometry(r, r, h, 36);
-            geo.translate(0, h / 2, 0);
-            meshOrGroup = new THREE.Mesh(geo, mat);
-            break;
-          }
-          case 'CREATE_SPHERE': {
-            const r = feat.radius || 25;
-            const geo = new THREE.SphereGeometry(r, 32, 24);
-            geo.translate(0, r, 0);
-            meshOrGroup = new THREE.Mesh(geo, mat);
-            break;
-          }
-
-          default:
-            meshOrGroup = this.buildUniversalHarmonicManifold(feat.prompt || 'Sculptural Form');
-            break;
-        }
-      }
-
+      const meshOrGroup = this.buildMeshForFeature(feat);
       if (meshOrGroup) {
         if (feat.scaleX !== undefined) {
           meshOrGroup.scale.set(feat.scaleX || 1, feat.scaleY || 1, feat.scaleZ || 1);
@@ -240,8 +207,8 @@ export class FeatureTree {
         rootGroup.add(meshOrGroup);
       }
     }
-
-    this.cadEngine.setActiveMesh(rootGroup);
+    return rootGroup;
+  }
 
     // Compute metrics
     const box = new THREE.Box3().setFromObject(rootGroup);

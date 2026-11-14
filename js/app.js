@@ -1,6 +1,6 @@
 /**
  * VoxCAD — Conversational & Parametric 3D Studio Orchestrator
- * Full Multimodal Vision-to-3D, Interior/Exterior Cutaway, and True Lingua Franca
+ * Advanced Multi-Object Scene Graph with Transform Gizmo, Library Vault & True Lingua Franca
  */
 
 import { CADEngine } from './cad-engine.js';
@@ -8,6 +8,8 @@ import { VoiceEngine } from './voice-engine.js';
 import { IntentParser } from './intent-parser.js';
 import { FeatureTree } from './feature-tree.js';
 import { GeminiSynthesizer } from './gemini-synthesizer.js';
+import { LibraryManager } from './library-manager.js';
+import * as THREE from 'three';
 
 class VoxCADApp {
   constructor() {
@@ -16,6 +18,7 @@ class VoxCADApp {
     this.intentParser = null;
     this.featureTree = null;
     this.geminiSynthesizer = null;
+    this.libraryManager = null;
 
     this.isAwaitingFollowup = false;
     this.stagedImage = null;
@@ -26,6 +29,16 @@ class VoxCADApp {
       btnToggleSidePanel: document.getElementById('btnToggleSidePanel'),
       btnCloseDrawer: document.getElementById('btnCloseDrawer'),
       sideDrawer: document.getElementById('sideDrawer'),
+      tabBtnScene: document.getElementById('tabBtnScene'),
+      tabBtnLibrary: document.getElementById('tabBtnLibrary'),
+      drawerSceneView: document.getElementById('drawerSceneView'),
+      drawerLibraryView: document.getElementById('drawerLibraryView'),
+      sceneCountBadge: document.getElementById('sceneCountBadge'),
+      sceneEntityList: document.getElementById('sceneEntityList'),
+      emptyTreeState: document.getElementById('emptyTreeState'),
+      libraryList: document.getElementById('libraryList'),
+      emptyLibraryState: document.getElementById('emptyLibraryState'),
+      btnSaveToLibrary: document.getElementById('btnSaveToLibrary'),
       btnToggleInspector: document.getElementById('btnToggleInspector'),
       btnCloseInspector: document.getElementById('btnCloseInspector'),
       metricInspector: document.getElementById('metricInspector'),
@@ -34,6 +47,10 @@ class VoxCADApp {
       metricWidthVal: document.getElementById('metricWidthVal'),
       metricHeightVal: document.getElementById('metricHeightVal'),
       metricFacesVal: document.getElementById('metricFacesVal'),
+      sliderPosX: document.getElementById('sliderPosX'),
+      posXNum: document.getElementById('posXNum'),
+      sliderPosZ: document.getElementById('sliderPosZ'),
+      posZNum: document.getElementById('posZNum'),
       sliderScaleX: document.getElementById('sliderScaleX'),
       scaleXNum: document.getElementById('scaleXNum'),
       sliderScaleY: document.getElementById('sliderScaleY'),
@@ -43,6 +60,9 @@ class VoxCADApp {
       sliderRotation: document.getElementById('sliderRotation'),
       rotationNum: document.getElementById('rotationNum'),
       btnResetTweaks: document.getElementById('btnResetTweaks'),
+      btnGizmoTranslate: document.getElementById('btnGizmoTranslate'),
+      btnGizmoRotate: document.getElementById('btnGizmoRotate'),
+      btnGizmoScale: document.getElementById('btnGizmoScale'),
       btnMic: document.getElementById('btnMic'),
       commandForm: document.getElementById('commandForm'),
       commandInput: document.getElementById('commandInput'),
@@ -55,8 +75,6 @@ class VoxCADApp {
       selectedEntityLabel: document.getElementById('selectedEntityLabel'),
       btnDismissSelection: document.getElementById('btnDismissSelection'),
       btnQuickExportSTL: document.getElementById('btnQuickExportSTL'),
-      featureTreeList: document.getElementById('featureTreeList'),
-      emptyTreeState: document.getElementById('emptyTreeState'),
       btnClearAll: document.getElementById('btnClearAll'),
       btnToggleTurntable: document.getElementById('btnToggleTurntable'),
       btnToggleWireframe: document.getElementById('btnToggleWireframe'),
@@ -94,6 +112,7 @@ class VoxCADApp {
       this.intentParser = new IntentParser();
       this.voiceEngine = new VoiceEngine();
       this.geminiSynthesizer = new GeminiSynthesizer(this.cadEngine);
+      this.libraryManager = new LibraryManager();
 
       this.setupSubsystems();
       this.setupUI();
@@ -104,8 +123,11 @@ class VoxCADApp {
         this.dom.aiModal.classList.add('hidden');
       }
 
+      // Initial Library render
+      this.renderLibrary(this.libraryManager.getLibrary());
+
       // Start 100% BLANK
-      this.featureTree.clear();
+      this.cadEngine.clearAllEntities();
       this.showStandbyState(true);
       this.updateMessage('Canvas ready. Speak, upload an image, or type any 3D concept.');
     } catch (err) {
@@ -115,45 +137,39 @@ class VoxCADApp {
   }
 
   setupSubsystems() {
-    this.cadEngine.onSelectionChanged = (faceInfo) => {
-      if (faceInfo) {
-        this.dom.selectedEntityLabel.textContent = `${faceInfo.name} Selected`;
-        this.dom.selectionChip.classList.remove('hidden');
+    // Multi-Object Scene Updates
+    this.cadEngine.onSceneUpdated = (entities, selected) => {
+      if (this.dom.sceneCountBadge) {
+        this.dom.sceneCountBadge.textContent = entities.length;
+      }
+      this.renderSceneOutliner(entities, selected);
+      this.showStandbyState(entities.length === 0);
+      if (selected) {
+        this.updateInspectorForEntity(selected);
       } else {
-        this.dom.selectionChip.classList.add('hidden');
+        this.clearInspector();
       }
     };
 
-    this.cadEngine.onGeometryUpdated = (stats) => {
-      if (this.dom.metricFacesVal) {
-        this.dom.metricFacesVal.textContent = stats.faces.toLocaleString();
+    // Selection changes (from canvas clicks or list)
+    this.cadEngine.onSelectionChanged = (selected) => {
+      if (selected) {
+        this.updateInspectorForEntity(selected);
+      } else {
+        this.clearInspector();
       }
-      this.showStandbyState(stats.faces === 0);
+      this.renderSceneOutliner(this.cadEngine.entities, selected);
     };
 
-    // Metrics Inspector live update
-    this.featureTree.onMetricsUpdated = (metrics) => {
-      if (metrics) {
-        this.dom.metricObjectTitle.textContent = metrics.title || 'Active Design';
-        this.dom.metricLengthVal.textContent = `${metrics.length} mm`;
-        this.dom.metricWidthVal.textContent = `${metrics.width} mm`;
-        this.dom.metricHeightVal.textContent = `${metrics.height} mm`;
-
-        this.dom.sliderScaleX.value = metrics.scaleX || 1.0;
-        this.dom.scaleXNum.textContent = `${(metrics.scaleX || 1.0).toFixed(2)}×`;
-        this.dom.sliderScaleY.value = metrics.scaleY || 1.0;
-        this.dom.scaleYNum.textContent = `${(metrics.scaleY || 1.0).toFixed(2)}×`;
-        this.dom.sliderScaleZ.value = metrics.scaleZ || 1.0;
-        this.dom.scaleZNum.textContent = `${(metrics.scaleZ || 1.0).toFixed(2)}×`;
-        this.dom.sliderRotation.value = metrics.rotationY || 0;
-        this.dom.rotationNum.textContent = `${metrics.rotationY || 0}°`;
-      } else {
-        this.dom.metricObjectTitle.textContent = 'Design Inspector';
-        this.dom.metricLengthVal.textContent = '0 mm';
-        this.dom.metricWidthVal.textContent = '0 mm';
-        this.dom.metricHeightVal.textContent = '0 mm';
-        this.dom.metricFacesVal.textContent = '0';
+    // Live update when dragging 3D Gizmo
+    this.cadEngine.onEntityTransformed = (entity) => {
+      if (entity) {
+        this.updateInspectorForEntity(entity);
       }
+    };
+
+    this.libraryManager.onLibraryChanged = (items) => {
+      this.renderLibrary(items);
     };
 
     this.voiceEngine.onTranscriptUpdate = (text) => {
@@ -190,10 +206,54 @@ class VoxCADApp {
     this.voiceEngine.onError = (errMsg) => {
       this.showNotification(errMsg);
     };
+  }
 
-    this.featureTree.onTreeUpdated = (features) => {
-      this.renderFeatureTree(features);
-    };
+  updateInspectorForEntity(entity) {
+    if (!entity) return;
+    this.dom.metricObjectTitle.textContent = entity.name || 'Selected Object';
+    this.dom.metricLengthVal.textContent = `${entity.metrics?.length || 0} mm`;
+    this.dom.metricWidthVal.textContent = `${entity.metrics?.width || 0} mm`;
+    this.dom.metricHeightVal.textContent = `${entity.metrics?.height || 0} mm`;
+    this.dom.metricFacesVal.textContent = (entity.metrics?.faces || 0).toLocaleString();
+
+    // Position Sliders
+    const px = Math.round(entity.mesh.position.x);
+    const pz = Math.round(entity.mesh.position.z);
+    this.dom.sliderPosX.value = px;
+    this.dom.posXNum.textContent = `${px} mm`;
+    this.dom.sliderPosZ.value = pz;
+    this.dom.posZNum.textContent = `${pz} mm`;
+
+    // Scale Sliders
+    const sx = entity.mesh.scale.x;
+    const sy = entity.mesh.scale.y;
+    const sz = entity.mesh.scale.z;
+    this.dom.sliderScaleX.value = sx;
+    this.dom.scaleXNum.textContent = `${sx.toFixed(2)}×`;
+    this.dom.sliderScaleY.value = sy;
+    this.dom.scaleYNum.textContent = `${sy.toFixed(2)}×`;
+    this.dom.sliderScaleZ.value = sz;
+    this.dom.scaleZNum.textContent = `${sz.toFixed(2)}×`;
+
+    // Rotation
+    const rotDeg = Math.round(THREE.MathUtils.radToDeg(entity.mesh.rotation.y)) % 360;
+    const normalizedDeg = rotDeg >= 0 ? rotDeg : rotDeg + 360;
+    this.dom.sliderRotation.value = normalizedDeg;
+    this.dom.rotationNum.textContent = `${normalizedDeg}°`;
+  }
+
+  clearInspector() {
+    this.dom.metricObjectTitle.textContent = 'Design Inspector';
+    this.dom.metricLengthVal.textContent = '0 mm';
+    this.dom.metricWidthVal.textContent = '0 mm';
+    this.dom.metricHeightVal.textContent = '0 mm';
+    this.dom.metricFacesVal.textContent = '0';
+    this.dom.posXNum.textContent = '0 mm';
+    this.dom.posZNum.textContent = '0 mm';
+    this.dom.scaleXNum.textContent = '1.0×';
+    this.dom.scaleYNum.textContent = '1.0×';
+    this.dom.scaleZNum.textContent = '1.0×';
+    this.dom.rotationNum.textContent = '0°';
   }
 
   updateAiKeyStatus() {
@@ -269,7 +329,7 @@ class VoxCADApp {
   }
 
   setupUI() {
-    // Drawer Toggles
+    // Drawer Toggles & Tabs
     this.dom.sideDrawer.classList.add('collapsed');
     this.dom.btnToggleSidePanel.addEventListener('click', () => {
       this.dom.sideDrawer.classList.toggle('collapsed');
@@ -277,6 +337,61 @@ class VoxCADApp {
     this.dom.btnCloseDrawer.addEventListener('click', () => {
       this.dom.sideDrawer.classList.add('collapsed');
     });
+
+    if (this.dom.tabBtnScene && this.dom.tabBtnLibrary) {
+      this.dom.tabBtnScene.addEventListener('click', () => {
+        this.dom.tabBtnScene.classList.add('active');
+        this.dom.tabBtnLibrary.classList.remove('active');
+        this.dom.drawerSceneView.style.display = 'block';
+        this.dom.drawerLibraryView.style.display = 'none';
+      });
+
+      this.dom.tabBtnLibrary.addEventListener('click', () => {
+        this.dom.tabBtnLibrary.classList.add('active');
+        this.dom.tabBtnScene.classList.remove('active');
+        this.dom.drawerLibraryView.style.display = 'block';
+        this.dom.drawerSceneView.style.display = 'none';
+        this.renderLibrary(this.libraryManager.getLibrary());
+      });
+    }
+
+    // Save Selected Object to Library Vault
+    if (this.dom.btnSaveToLibrary) {
+      this.dom.btnSaveToLibrary.addEventListener('click', () => {
+        if (!this.cadEngine.selectedEntity) {
+          this.showNotification('Please select an object in the scene to save it.');
+          return;
+        }
+        const ent = this.cadEngine.selectedEntity;
+        const thumbnail = this.cadEngine.captureThumbnail();
+        this.libraryManager.saveModel({
+          name: ent.name,
+          summary: ent.summary,
+          type: ent.type,
+          code: ent.code,
+          metrics: ent.metrics,
+          thumbnail
+        });
+        this.showNotification(`✨ Saved "${ent.name}" to your 3D Vault!`);
+      });
+    }
+
+    // 3D Transform Gizmo Mode Buttons
+    const setupGizmoBtn = (btn, mode) => {
+      if (btn) {
+        btn.addEventListener('click', () => {
+          [this.dom.btnGizmoTranslate, this.dom.btnGizmoRotate, this.dom.btnGizmoScale].forEach(b => {
+            if (b) b.classList.remove('active');
+          });
+          btn.classList.add('active');
+          this.cadEngine.setGizmoMode(mode);
+          this.updateMessage(`Gizmo tool: ${mode.toUpperCase()} in 3D viewport`);
+        });
+      }
+    };
+    setupGizmoBtn(this.dom.btnGizmoTranslate, 'translate');
+    setupGizmoBtn(this.dom.btnGizmoRotate, 'rotate');
+    setupGizmoBtn(this.dom.btnGizmoScale, 'scale');
 
     // Inspector Toggle
     this.dom.btnToggleInspector.addEventListener('click', () => {
@@ -288,33 +403,52 @@ class VoxCADApp {
       this.dom.btnToggleInspector.classList.remove('active');
     });
 
-    // Real-Time Manual Tweak Sliders
+    // Real-Time Manual Precision Sliders (Position, Scale, Rotation)
     const onSliderChange = () => {
+      if (!this.cadEngine.selectedEntity) return;
+      const ent = this.cadEngine.selectedEntity;
+
+      const px = parseFloat(this.dom.sliderPosX.value);
+      const pz = parseFloat(this.dom.sliderPosZ.value);
       const sx = parseFloat(this.dom.sliderScaleX.value);
       const sy = parseFloat(this.dom.sliderScaleY.value);
       const sz = parseFloat(this.dom.sliderScaleZ.value);
       const rot = parseInt(this.dom.sliderRotation.value);
 
+      this.dom.posXNum.textContent = `${px} mm`;
+      this.dom.posZNum.textContent = `${pz} mm`;
       this.dom.scaleXNum.textContent = `${sx.toFixed(2)}×`;
       this.dom.scaleYNum.textContent = `${sy.toFixed(2)}×`;
       this.dom.scaleZNum.textContent = `${sz.toFixed(2)}×`;
       this.dom.rotationNum.textContent = `${rot}°`;
 
-      this.featureTree.updateActiveFeatureScale(sx, sy, sz);
-      this.featureTree.updateActiveFeatureRotation(rot);
+      ent.mesh.position.x = px;
+      ent.mesh.position.z = pz;
+      ent.mesh.scale.set(sx, sy, sz);
+      ent.mesh.rotation.y = THREE.MathUtils.degToRad(rot);
+
+      this.cadEngine.updateSelectionHelper();
+      this.cadEngine.updateEntityMetrics(ent);
+      this.dom.metricLengthVal.textContent = `${ent.metrics.length} mm`;
+      this.dom.metricWidthVal.textContent = `${ent.metrics.width} mm`;
+      this.dom.metricHeightVal.textContent = `${ent.metrics.height} mm`;
     };
 
+    this.dom.sliderPosX.addEventListener('input', onSliderChange);
+    this.dom.sliderPosZ.addEventListener('input', onSliderChange);
     this.dom.sliderScaleX.addEventListener('input', onSliderChange);
     this.dom.sliderScaleY.addEventListener('input', onSliderChange);
     this.dom.sliderScaleZ.addEventListener('input', onSliderChange);
     this.dom.sliderRotation.addEventListener('input', onSliderChange);
 
     this.dom.btnResetTweaks.addEventListener('click', () => {
-      this.dom.sliderScaleX.value = 1.0;
-      this.dom.sliderScaleY.value = 1.0;
-      this.dom.sliderScaleZ.value = 1.0;
-      this.dom.sliderRotation.value = 0;
-      onSliderChange();
+      if (this.cadEngine.selectedEntity) {
+        this.dom.sliderScaleX.value = 1.0;
+        this.dom.sliderScaleY.value = 1.0;
+        this.dom.sliderScaleZ.value = 1.0;
+        this.dom.sliderRotation.value = 0;
+        onSliderChange();
+      }
     });
 
     // Mic Button
@@ -526,7 +660,7 @@ class VoxCADApp {
     });
 
     this.dom.btnResetCamera.addEventListener('click', () => {
-      this.cadEngine.resetCamera();
+      this.cadEngine.resetCameraToScene();
     });
 
     this.dom.btnQuickExportSTL.addEventListener('click', () => {
@@ -534,16 +668,12 @@ class VoxCADApp {
       this.showNotification('Exported 3D printable STL file!');
     });
 
-    this.dom.btnDismissSelection.addEventListener('click', () => {
-      this.cadEngine.clearSelection();
-    });
-
     this.dom.btnCloseNotification.addEventListener('click', () => {
       this.dom.notificationBanner.classList.add('hidden');
     });
 
     this.dom.btnClearAll.addEventListener('click', () => {
-      this.featureTree.clear();
+      this.cadEngine.clearAllEntities();
       this.clearStagedImage();
       this.showStandbyState(true);
       this.updateMessage('Canvas reset to blank.');
@@ -558,12 +688,6 @@ class VoxCADApp {
         e.preventDefault();
         this.isAwaitingFollowup = false;
         this.voiceEngine.startListening();
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        this.featureTree.undo();
-        this.updateMessage('Undid last feature.');
       }
 
       if (e.key === 'Escape' && this.dom.aiModal) {
@@ -604,13 +728,12 @@ class VoxCADApp {
       return;
     }
 
-    const selectedFace = this.cadEngine.selectedFace;
-    const intent = this.intentParser.parse(rawText, selectedFace, this.featureTree.features);
+    const intent = this.intentParser.parse(rawText, null, []);
 
     // Direct UI, View, Material, or History commands
     if (intent && intent.type === 'CAMERA_VIEW') {
       if (intent.view === 'reset') {
-        this.cadEngine.resetCamera();
+        this.cadEngine.resetCameraToScene();
       } else {
         this.cadEngine.setCameraView(intent.view);
         document.querySelectorAll('.glass-pill-group .pill-btn[data-view]').forEach(b => {
@@ -653,21 +776,8 @@ class VoxCADApp {
       return;
     }
 
-    if (intent && intent.type === 'UNDO') {
-      const undone = this.featureTree.undo();
-      this.updateMessage(undone ? 'Undid last feature.' : 'Nothing to undo.');
-      this.voiceEngine.speak(undone ? 'Undid last feature' : 'Nothing to undo');
-      return;
-    }
-
-    if (intent && intent.type === 'REDO') {
-      const redone = this.featureTree.redo();
-      this.updateMessage(redone ? 'Redid feature.' : 'Nothing to redo.');
-      return;
-    }
-
     if (intent && intent.type === 'CLEAR_ALL') {
-      this.featureTree.clear();
+      this.cadEngine.clearAllEntities();
       this.clearStagedImage();
       this.showStandbyState(true);
       this.updateMessage('Canvas reset to blank.');
@@ -700,17 +810,15 @@ class VoxCADApp {
           this.clearStagedImage();
         }
 
-        this.featureTree.addOperation({
-          type: 'GENAI_DYNAMIC_MODEL',
-          group: result.group,
-          displayTitle: result.title,
-          description: result.summary
+        // Add as an independent entity in the multi-object scene (auto-positioned side-by-side!)
+        this.cadEngine.addEntity(result.title, result.group, {
+          summary: result.summary,
+          type: 'GENAI_DYNAMIC_MODEL'
         });
 
         this.showStandbyState(false);
-        this.cadEngine.clearSelection();
 
-        const voiceText = `Created ${result.title}. Metrics and sliders are ready on the side panel. Use the Interior button at top to inspect internal components. Would you like any adjustments?`;
+        const voiceText = `Created ${result.title}. Positioned cleanly on plane. Use 3D Gizmo to move or rotate, or Interior button to inspect inside. Would you like any adjustments?`;
         this.updateMessage(result.summary || `Synthesized ${result.title}`);
 
         this.isAwaitingFollowup = true;
@@ -727,18 +835,19 @@ class VoxCADApp {
       }
     }
 
-    // Offline Procedural Engine
+    // Offline Procedural Engine (Smart Multi-Object Placement)
     if (intent && (intent.type.startsWith('CREATE_') || intent.type.startsWith('CUT_') || intent.type.startsWith('EXTRUDE_'))) {
-      this.featureTree.addOperation({
-        ...intent,
-        description: intent.message
+      const mesh = this.featureTree.buildMeshForFeature(intent);
+      const displayTitle = intent.displayTitle || intent.type.replace('CREATE_', '').replace(/_/g, ' ').toLowerCase();
+
+      this.cadEngine.addEntity(displayTitle, mesh, {
+        summary: intent.message,
+        type: intent.type
       });
 
       this.showStandbyState(false);
-      this.cadEngine.clearSelection();
 
-      const displayTitle = intent.displayTitle || intent.type.replace('CREATE_', '').replace(/_/g, ' ').toLowerCase();
-      const voiceText = `Created ${displayTitle}. Metrics and manual sliders are ready on the side panel. Would you like any adjustments?`;
+      const voiceText = `Created ${displayTitle}. Positioned on plane. Would you like any adjustments?`;
       this.updateMessage(intent.message || `Created ${displayTitle}`);
 
       this.isAwaitingFollowup = true;
@@ -766,33 +875,141 @@ class VoxCADApp {
     }, 7000);
   }
 
-  renderFeatureTree(features) {
-    const list = this.dom.featureTreeList;
+  // Renders the Multi-Object Scene Outliner
+  renderSceneOutliner(entities, selectedEntity) {
+    const list = this.dom.sceneEntityList;
+    if (!list) return;
     list.innerHTML = '';
 
-    if (!features || features.length === 0) {
-      list.appendChild(this.dom.emptyTreeState);
+    if (!entities || entities.length === 0) {
+      if (this.dom.emptyTreeState) list.appendChild(this.dom.emptyTreeState);
       return;
     }
 
-    features.forEach((feat, index) => {
-      const node = document.createElement('div');
-      node.className = 'feature-node';
-      node.innerHTML = `
-        <div class="feature-node-info">
-          <span class="feature-node-title">#${index + 1} ${feat.displayTitle || feat.type.replace('CREATE_', '').replace(/_/g, ' ')}</span>
-          <span class="feature-node-desc">${feat.description || 'Feature'}</span>
+    entities.forEach((ent) => {
+      const isSelected = selectedEntity && selectedEntity.id === ent.id;
+      const card = document.createElement('div');
+      card.className = `scene-entity-card ${isSelected ? 'selected' : ''}`;
+      card.innerHTML = `
+        <div class="scene-entity-info">
+          <span class="scene-entity-name">${ent.name}</span>
+          <span class="scene-entity-metrics">${ent.metrics.length}×${ent.metrics.width}×${ent.metrics.height}mm · ${ent.metrics.faces.toLocaleString()}f</span>
         </div>
-        <button class="feature-delete-btn" title="Delete" data-id="${feat.id}">×</button>
+        <div class="scene-entity-actions">
+          <button class="entity-action-btn btn-vis" title="${ent.visible ? 'Hide Object' : 'Show Object'}">
+            ${ent.visible ? '👁️' : '🙈'}
+          </button>
+          <button class="entity-action-btn btn-focus" title="Focus Camera">🎯</button>
+          <button class="entity-action-btn btn-save" title="Save to Vault">💾</button>
+          <button class="entity-action-btn btn-del" title="Delete Object">×</button>
+        </div>
       `;
 
-      node.querySelector('.feature-delete-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.featureTree.removeOperation(feat.id);
+      card.addEventListener('click', () => {
+        this.cadEngine.selectEntity(ent);
       });
 
-      list.appendChild(node);
+      card.querySelector('.btn-vis').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.cadEngine.setEntityVisibility(ent.id, !ent.visible);
+      });
+
+      card.querySelector('.btn-focus').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.cadEngine.focusEntity(ent.id);
+      });
+
+      card.querySelector('.btn-save').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.cadEngine.selectEntity(ent);
+        const thumb = this.cadEngine.captureThumbnail();
+        this.libraryManager.saveModel({
+          name: ent.name,
+          summary: ent.summary,
+          type: ent.type,
+          code: ent.code,
+          metrics: ent.metrics,
+          thumbnail: thumb
+        });
+        this.showNotification(`Saved "${ent.name}" to Library Vault!`);
+      });
+
+      card.querySelector('.btn-del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.cadEngine.removeEntity(ent.id);
+      });
+
+      list.appendChild(card);
     });
+  }
+
+  // Renders the Saved 3D Library Vault
+  renderLibrary(items) {
+    const list = this.dom.libraryList;
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!items || items.length === 0) {
+      if (this.dom.emptyLibraryState) list.appendChild(this.dom.emptyLibraryState);
+      return;
+    }
+
+    items.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'library-card';
+      const thumbSrc = item.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%2338bdf8"><rect width="50" height="50" fill="%230f172a"/><text x="15" y="30" fill="%23fff" font-size="16">3D</text></svg>';
+
+      card.innerHTML = `
+        <div class="library-card-header">
+          <img src="${thumbSrc}" class="library-thumb" alt="${item.name}" />
+          <div class="library-meta">
+            <span class="library-name">${item.name}</span>
+            <span class="library-date">${item.createdAt}</span>
+            <span class="library-dims">${item.metrics?.length || 0}×${item.metrics?.width || 0}×${item.metrics?.height || 0}mm</span>
+          </div>
+        </div>
+        <div class="library-actions">
+          <button class="btn-add-scene" data-id="${item.id}">+ Add to Scene</button>
+          <div style="display: flex; gap: 4px;">
+            <button class="entity-action-btn btn-export-item" title="Export STL">⬇️</button>
+            <button class="entity-action-btn btn-del" title="Delete from Vault">🗑️</button>
+          </div>
+        </div>
+      `;
+
+      card.querySelector('.btn-add-scene').addEventListener('click', () => {
+        this.addLibraryAssetToScene(item);
+      });
+
+      card.querySelector('.btn-del').addEventListener('click', () => {
+        this.libraryManager.deleteModel(item.id);
+      });
+
+      card.querySelector('.btn-export-item').addEventListener('click', () => {
+        this.addLibraryAssetToScene(item);
+        this.cadEngine.exportSTL(`${item.name.replace(/\s+/g, '_')}.stl`);
+      });
+
+      list.appendChild(card);
+    });
+  }
+
+  addLibraryAssetToScene(asset) {
+    let mesh = null;
+    if (asset.code) {
+      mesh = this.geminiSynthesizer.executeProceduralCode(asset.code);
+    } else {
+      mesh = this.featureTree.buildMeshForFeature({ type: asset.type, displayTitle: asset.name });
+    }
+
+    if (mesh) {
+      this.cadEngine.addEntity(asset.name, mesh, {
+        summary: asset.summary,
+        type: asset.type,
+        code: asset.code
+      });
+      this.updateMessage(`Spawned "${asset.name}" from Vault into scene.`);
+    }
   }
 }
 

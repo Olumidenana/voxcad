@@ -16,6 +16,7 @@
       "imports": {
         "three": "./vendor/three.module.js",
         "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js",
+        "three/addons/controls/TransformControls.js": "./vendor/TransformControls.js",
         "three/addons/exporters/STLExporter.js": "./vendor/STLExporter.js"
       }
     }
@@ -67,6 +68,19 @@
 
       <!-- Quick Viewport Controls -->
       <div class="header-center">
+        <!-- 3D Transform Gizmo Modes -->
+        <div class="glass-pill-group">
+          <button class="pill-btn icon-only active" data-gizmo="translate" id="btnGizmoTranslate" title="Move Tool (Translate in 3D)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+          </button>
+          <button class="pill-btn icon-only" data-gizmo="rotate" id="btnGizmoRotate" title="Rotate Tool (Rotate in 3D)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </button>
+          <button class="pill-btn icon-only" data-gizmo="scale" id="btnGizmoScale" title="Scale Tool (Resize in 3D)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+          </button>
+        </div>
+
         <div class="glass-pill-group">
           <button class="pill-btn active" data-view="iso" title="Isometric View">ISO</button>
           <button class="pill-btn" data-view="top" title="Top View">TOP</button>
@@ -110,54 +124,74 @@
       </div>
     </header>
 
-    <!-- Slide-out Left Drawer: Feature History & Materials -->
+    <!-- Slide-out Left Drawer: Scene Outliner & Saved 3D Vault -->
     <aside class="slide-drawer" id="sideDrawer">
       <div class="drawer-header">
-        <div class="drawer-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-          <span>Design History</span>
+        <div class="drawer-tabs">
+          <button class="drawer-tab-btn active" id="tabBtnScene" title="Objects currently in 3D Scene">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            <span>Scene (<span id="sceneCountBadge">0</span>)</span>
+          </button>
+          <button class="drawer-tab-btn" id="tabBtnLibrary" title="Your Saved 3D Model Library">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            <span>Saved Vault</span>
+          </button>
         </div>
         <button id="btnCloseDrawer" class="hud-btn icon-only">×</button>
       </div>
 
       <div class="drawer-body">
-        <div class="section-heading">Parametric Steps</div>
-        <div id="featureTreeList" class="feature-list">
-          <div class="empty-state" id="emptyTreeState">
-            <p>No features yet</p>
-            <small>Speak or type to generate any 3D design</small>
+        <!-- View 1: Active Scene Outliner -->
+        <div id="drawerSceneView">
+          <div class="section-heading">Active Scene Objects</div>
+          <div id="sceneEntityList" class="feature-list">
+            <div class="empty-state" id="emptyTreeState">
+              <p>No objects on canvas yet</p>
+              <small>Speak, upload an image, or type to add models</small>
+            </div>
+          </div>
+
+          <div class="section-heading" style="margin-top: 14px;">Material Shading</div>
+          <div class="material-grid">
+            <button class="mat-card active" data-mat="titanium">
+              <span class="mat-dot" style="background: #94a3b8;"></span>
+              <span class="mat-name">Titanium</span>
+            </button>
+            <button class="mat-card" data-mat="brass">
+              <span class="mat-dot" style="background: #f59e0b;"></span>
+              <span class="mat-name">Machined Brass</span>
+            </button>
+            <button class="mat-card" data-mat="aluminum">
+              <span class="mat-dot" style="background: #38bdf8;"></span>
+              <span class="mat-name">Cyan Anodized</span>
+            </button>
+            <button class="mat-card" data-mat="copper">
+              <span class="mat-dot" style="background: #fb923c;"></span>
+              <span class="mat-name">Copper</span>
+            </button>
+            <button class="mat-card" data-mat="matte-black">
+              <span class="mat-dot" style="background: #334155;"></span>
+              <span class="mat-name">Stealth Black</span>
+            </button>
+          </div>
+
+          <div class="drawer-footer-actions">
+            <button id="btnClearAll" class="btn btn-danger-outline">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Reset to Blank Canvas</span>
+            </button>
           </div>
         </div>
 
-        <div class="section-heading">Material Shading</div>
-        <div class="material-grid">
-          <button class="mat-card active" data-mat="titanium">
-            <span class="mat-dot" style="background: #94a3b8;"></span>
-            <span class="mat-name">Titanium</span>
-          </button>
-          <button class="mat-card" data-mat="brass">
-            <span class="mat-dot" style="background: #f59e0b;"></span>
-            <span class="mat-name">Machined Brass</span>
-          </button>
-          <button class="mat-card" data-mat="aluminum">
-            <span class="mat-dot" style="background: #38bdf8;"></span>
-            <span class="mat-name">Cyan Anodized</span>
-          </button>
-          <button class="mat-card" data-mat="copper">
-            <span class="mat-dot" style="background: #fb923c;"></span>
-            <span class="mat-name">Copper</span>
-          </button>
-          <button class="mat-card" data-mat="matte-black">
-            <span class="mat-dot" style="background: #334155;"></span>
-            <span class="mat-name">Stealth Black</span>
-          </button>
-        </div>
-
-        <div class="drawer-footer-actions">
-          <button id="btnClearAll" class="btn btn-danger-outline">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            <span>Reset to Blank Canvas</span>
-          </button>
+        <!-- View 2: Saved 3D Library & Asset Vault -->
+        <div id="drawerLibraryView" class="hidden" style="display: none;">
+          <div class="section-heading">Saved 3D Designs</div>
+          <div id="libraryList" class="library-cards-list">
+            <div class="empty-state" id="emptyLibraryState">
+              <p>No saved models yet</p>
+              <small>Click "Save to Vault" on any design to store it here</small>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -169,7 +203,12 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2v20"/></svg>
           <span id="metricObjectTitle">Design Inspector</span>
         </div>
-        <button id="btnCloseInspector" class="hud-btn icon-only">×</button>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button id="btnSaveToLibrary" class="btn-save-vault" title="Save this 3D model to your permanent Library Vault">
+            <span>💾 Save</span>
+          </button>
+          <button id="btnCloseInspector" class="hud-btn icon-only">×</button>
+        </div>
       </div>
 
       <div class="inspector-body">
@@ -193,7 +232,26 @@
           </div>
         </div>
 
-        <div class="section-heading" style="margin-top: 14px;">Manual Precision Sliders</div>
+        <div class="section-heading" style="margin-top: 14px;">Plane Position (Floor Offset)</div>
+        <!-- Position X -->
+        <div class="control-row">
+          <div class="control-label">
+            <span>Position X (Left / Right)</span>
+            <span id="posXNum" class="control-val">0 mm</span>
+          </div>
+          <input type="range" id="sliderPosX" min="-300" max="300" step="5" value="0" class="tweak-slider">
+        </div>
+
+        <!-- Position Z -->
+        <div class="control-row">
+          <div class="control-label">
+            <span>Position Z (Forward / Back)</span>
+            <span id="posZNum" class="control-val">0 mm</span>
+          </div>
+          <input type="range" id="sliderPosZ" min="-300" max="300" step="5" value="0" class="tweak-slider">
+        </div>
+
+        <div class="section-heading" style="margin-top: 10px;">Scale & Orientation</div>
 
         <!-- Slider 1: Length / Scale X -->
         <div class="control-row">

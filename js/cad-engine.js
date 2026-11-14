@@ -1,10 +1,12 @@
 /**
  * VoxCAD — Viewport & Scene Management
+ * Advanced Multi-Object Scene Graph with Transform Controls & Auto-Layout
  * 100% Local Vendor Three.js (Zero CDN dependencies)
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 
 export class CADEngine {
@@ -16,24 +18,32 @@ export class CADEngine {
     this.camera = null;
     this.renderer = null;
     this.controls = null;
+    this.transformControls = null;
     this.grid = null;
     this.axes = null;
 
     this.modelGroup = new THREE.Group();
-    this.activeMesh = null;
+    this.entities = []; // Array of SceneEntity: { id, name, mesh, metrics, summary, visible }
+    this.selectedEntity = null;
     this.selectedFace = null;
-    this.highlightHelper = null;
+    this.selectionBoxHelper = null;
 
     this.isWireframe = false;
     this.showGrid = true;
     this.autoRotate = false;
     this.activeMaterialName = 'titanium';
+    this.gizmoMode = 'translate'; // 'translate' | 'rotate' | 'scale' | 'off'
+
+    this.interiorMode = 'solid'; // 'solid' | 'xray' | 'cutaway'
+    this.clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
     this.onSelectionChanged = null;
+    this.onSceneUpdated = null;
     this.onGeometryUpdated = null;
+    this.onEntityTransformed = null;
 
     this.init();
   }
@@ -44,13 +54,14 @@ export class CADEngine {
     this.scene.add(this.modelGroup);
 
     const aspect = this.container.clientWidth / this.container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(45, aspect, 1, 3000);
+    this.camera = new THREE.PerspectiveCamera(45, aspect, 1, 4000);
     this.setCameraView('iso');
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
     });
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -58,20 +69,39 @@ export class CADEngine {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.localClippingEnabled = true;
 
-    this.interiorMode = 'solid'; // 'solid' | 'xray' | 'cutaway'
-    this.clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
-
+    // Orbit Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
-    this.controls.maxDistance = 1800;
+    this.controls.maxDistance = 2500;
     this.controls.minDistance = 10;
     this.controls.target.set(0, 20, 0);
 
-    // Stop auto-rotate as soon as user touches the canvas
+    // Stop auto-rotate as soon as user touches canvas
     this.controls.addEventListener('start', () => {
       this.autoRotate = false;
     });
+
+    // 3D Transform Gizmo (Translate / Rotate / Scale directly in 3D)
+    this.transformControls = new TransformControls(this.camera, this.renderer.domElement);
+    this.transformControls.size = 0.8;
+    this.transformControls.setMode(this.gizmoMode);
+
+    this.transformControls.addEventListener('dragging-changed', (event) => {
+      this.controls.enabled = !event.value;
+    });
+
+    this.transformControls.addEventListener('change', () => {
+      if (this.selectedEntity) {
+        this.updateSelectionHelper();
+        this.updateEntityMetrics(this.selectedEntity);
+        if (this.onEntityTransformed) {
+          this.onEntityTransformed(this.selectedEntity);
+        }
+      }
+    });
+
+    this.scene.add(this.transformControls);
 
     this.setupLighting();
     this.setupGrid();
@@ -83,7 +113,7 @@ export class CADEngine {
   }
 
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.95);
     this.scene.add(ambient);
 
     const key = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -93,22 +123,22 @@ export class CADEngine {
     key.shadow.mapSize.height = 2048;
     this.scene.add(key);
 
-    const rim = new THREE.DirectionalLight(0x38bdf8, 0.65);
+    const rim = new THREE.DirectionalLight(0x38bdf8, 0.7);
     rim.position.set(-180, 100, -160);
     this.scene.add(rim);
 
-    const warmFill = new THREE.DirectionalLight(0xf59e0b, 0.25);
+    const warmFill = new THREE.DirectionalLight(0xf59e0b, 0.3);
     warmFill.position.set(140, -60, -100);
     this.scene.add(warmFill);
   }
 
   setupGrid() {
-    this.grid = new THREE.GridHelper(360, 36, 0x0284c7, 0x172554);
+    this.grid = new THREE.GridHelper(500, 50, 0x0284c7, 0x172554);
     this.grid.position.y = 0;
     this.scene.add(this.grid);
 
-    this.axes = new THREE.AxesHelper(35);
-    this.axes.position.set(-160, 0.5, -160);
+    this.axes = new THREE.AxesHelper(40);
+    this.axes.position.set(-220, 0.5, -220);
     this.scene.add(this.axes);
   }
 
@@ -150,29 +180,42 @@ export class CADEngine {
 
   setMaterial(name) {
     this.activeMaterialName = name;
-    if (this.activeMesh) {
-      this.activeMesh.traverse(child => {
+    if (this.selectedEntity && this.selectedEntity.mesh) {
+      this.selectedEntity.mesh.traverse(child => {
         if (child.isMesh) child.material = this.getMaterial(name);
       });
+      this.applyInteriorMode();
+    }
+  }
+
+  setGizmoMode(mode) {
+    this.gizmoMode = mode;
+    if (mode === 'off') {
+      this.transformControls.detach();
+    } else {
+      this.transformControls.setMode(mode);
+      if (this.selectedEntity && this.selectedEntity.visible) {
+        this.transformControls.attach(this.selectedEntity.mesh);
+      }
     }
   }
 
   setCameraView(view) {
-    const dist = 180;
+    const dist = 200;
     const target = this.controls ? this.controls.target : new THREE.Vector3(0, 20, 0);
 
     switch (view) {
       case 'iso':
-        this.camera.position.set(dist * 0.85, dist * 0.75, dist * 0.85);
+        this.camera.position.set(target.x + dist * 0.85, target.y + dist * 0.75, target.z + dist * 0.85);
         break;
       case 'top':
         this.camera.position.set(target.x, target.y + dist * 1.3, target.z + 0.001);
         break;
       case 'front':
-        this.camera.position.set(target.x, target.y + 15, target.z + dist * 1.2);
+        this.camera.position.set(target.x, target.y + 20, target.z + dist * 1.2);
         break;
       case 'right':
-        this.camera.position.set(target.x + dist * 1.2, target.y + 15, target.z);
+        this.camera.position.set(target.x + dist * 1.2, target.y + 20, target.z);
         break;
     }
     this.camera.lookAt(target);
@@ -181,11 +224,9 @@ export class CADEngine {
 
   toggleWireframe() {
     this.isWireframe = !this.isWireframe;
-    if (this.activeMesh) {
-      this.activeMesh.traverse(child => {
-        if (child.isMesh && child.material) child.material.wireframe = this.isWireframe;
-      });
-    }
+    this.modelGroup.traverse(child => {
+      if (child.isMesh && child.material) child.material.wireframe = this.isWireframe;
+    });
     return this.isWireframe;
   }
 
@@ -210,9 +251,7 @@ export class CADEngine {
   }
 
   applyInteriorMode() {
-    if (!this.activeMesh) return;
-
-    this.activeMesh.traverse(child => {
+    this.modelGroup.traverse(child => {
       if (child.isMesh && child.material) {
         const isExterior = child.userData.isExterior !== false && (child.userData.isExterior || !child.userData.isInterior);
 
@@ -245,19 +284,217 @@ export class CADEngine {
     });
   }
 
-  resetCamera() {
-    if (this.activeMesh) {
-      const box = new THREE.Box3().setFromObject(this.activeMesh);
+  // --------------------------------------------------------------------------
+  // Multi-Object Scene Management with Smart Spatial Auto-Placement
+  // --------------------------------------------------------------------------
+
+  addEntity(name, mesh, meta = {}) {
+    const id = meta.id || 'entity_' + Date.now();
+
+    // Prepare mesh visuals & wire edges
+    mesh.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData.entityId = id;
+        if (!child.material || child.material.name === 'default') {
+          child.material = this.getMaterial(this.activeMaterialName);
+        }
+
+        const edges = new THREE.EdgesGeometry(child.geometry, 28);
+        const line = new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 1, transparent: true, opacity: 0.35 })
+        );
+        child.add(line);
+      }
+    });
+
+    mesh.userData.id = id;
+    mesh.userData.name = name;
+
+    // Calculate bounds of this new mesh
+    const newBox = new THREE.Box3().setFromObject(mesh);
+    const newSize = newBox.getSize(new THREE.Vector3());
+
+    // SMART AUTO-LAYOUT: If objects already exist, offset this object cleanly on the plane!
+    // Never stack on the same spot!
+    if (this.entities.length > 0) {
+      let maxX = -Infinity;
+      this.entities.forEach(ent => {
+        if (ent.visible) {
+          const b = new THREE.Box3().setFromObject(ent.mesh);
+          if (b.max.x > maxX) maxX = b.max.x;
+        }
+      });
+      const spacingGap = 35; // 35mm comfortable spacing
+      const targetX = maxX + (newSize.x / 2) + spacingGap;
+      mesh.position.x = targetX;
+    }
+
+    const entity = {
+      id,
+      name,
+      mesh,
+      summary: meta.summary || 'Custom 3D Model',
+      type: meta.type || 'GENAI_DYNAMIC_MODEL',
+      code: meta.code || null,
+      visible: true,
+      metrics: {
+        length: Math.round(newSize.x),
+        width: Math.round(newSize.z),
+        height: Math.round(newSize.y),
+        faces: this.calculateMeshFaces(mesh)
+      }
+    };
+
+    this.entities.push(entity);
+    this.modelGroup.add(mesh);
+
+    this.selectEntity(entity);
+    this.resetCameraToScene();
+
+    if (this.onSceneUpdated) {
+      this.onSceneUpdated(this.entities, this.selectedEntity);
+    }
+    return entity;
+  }
+
+  selectEntity(entityOrId) {
+    let entity = null;
+    if (typeof entityOrId === 'string') {
+      entity = this.entities.find(e => e.id === entityOrId) || null;
+    } else {
+      entity = entityOrId;
+    }
+
+    this.selectedEntity = entity;
+
+    if (entity && entity.visible) {
+      if (this.gizmoMode !== 'off') {
+        this.transformControls.attach(entity.mesh);
+      }
+      this.updateSelectionHelper();
+    } else {
+      this.transformControls.detach();
+      this.removeSelectionHelper();
+    }
+
+    if (this.onSelectionChanged) {
+      this.onSelectionChanged(entity);
+    }
+  }
+
+  removeEntity(id) {
+    const idx = this.entities.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      const ent = this.entities[idx];
+      if (this.selectedEntity && this.selectedEntity.id === id) {
+        this.selectEntity(null);
+      }
+      this.modelGroup.remove(ent.mesh);
+      this.entities.splice(idx, 1);
+
+      if (this.onSceneUpdated) {
+        this.onSceneUpdated(this.entities, this.selectedEntity);
+      }
+    }
+  }
+
+  setEntityVisibility(id, visible) {
+    const ent = this.entities.find(e => e.id === id);
+    if (ent) {
+      ent.visible = visible;
+      ent.mesh.visible = visible;
+      if (!visible && this.selectedEntity && this.selectedEntity.id === id) {
+        this.transformControls.detach();
+        this.removeSelectionHelper();
+      } else if (visible && this.selectedEntity && this.selectedEntity.id === id) {
+        if (this.gizmoMode !== 'off') this.transformControls.attach(ent.mesh);
+        this.updateSelectionHelper();
+      }
+      if (this.onSceneUpdated) {
+        this.onSceneUpdated(this.entities, this.selectedEntity);
+      }
+    }
+  }
+
+  focusEntity(id) {
+    const ent = this.entities.find(e => e.id === id);
+    if (ent && ent.visible) {
+      this.selectEntity(ent);
+      const box = new THREE.Box3().setFromObject(ent.mesh);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 50);
 
       this.controls.target.copy(center);
-      this.camera.position.set(center.x + maxDim * 1.5, center.y + maxDim * 1.2, center.z + maxDim * 1.5);
+      this.camera.position.set(center.x + maxDim * 1.4, center.y + maxDim * 1.1, center.z + maxDim * 1.4);
       this.controls.update();
-    } else {
-      this.setCameraView('iso');
     }
+  }
+
+  clearAllEntities() {
+    this.selectEntity(null);
+    while (this.modelGroup.children.length > 0) {
+      this.modelGroup.remove(this.modelGroup.children[0]);
+    }
+    this.entities = [];
+    if (this.onSceneUpdated) {
+      this.onSceneUpdated(this.entities, null);
+    }
+  }
+
+  updateSelectionHelper() {
+    this.removeSelectionHelper();
+    if (!this.selectedEntity || !this.selectedEntity.mesh) return;
+
+    this.selectionBoxHelper = new THREE.BoxHelper(this.selectedEntity.mesh, 0x00f2fe);
+    this.selectionBoxHelper.material.transparent = true;
+    this.selectionBoxHelper.material.opacity = 0.7;
+    this.scene.add(this.selectionBoxHelper);
+  }
+
+  removeSelectionHelper() {
+    if (this.selectionBoxHelper) {
+      this.scene.remove(this.selectionBoxHelper);
+      this.selectionBoxHelper = null;
+    }
+  }
+
+  updateEntityMetrics(entity) {
+    if (!entity || !entity.mesh) return;
+    const box = new THREE.Box3().setFromObject(entity.mesh);
+    const size = box.getSize(new THREE.Vector3());
+    entity.metrics.length = Math.round(size.x);
+    entity.metrics.width = Math.round(size.z);
+    entity.metrics.height = Math.round(size.y);
+  }
+
+  calculateMeshFaces(mesh) {
+    let faces = 0;
+    mesh.traverse(child => {
+      if (child.isMesh && child.geometry) {
+        faces += child.geometry.index ? child.geometry.index.count / 3 : child.geometry.attributes.position.count / 3;
+      }
+    });
+    return Math.round(faces);
+  }
+
+  resetCameraToScene() {
+    if (this.entities.length === 0) {
+      this.setCameraView('iso');
+      return;
+    }
+
+    const box = new THREE.Box3().setFromObject(this.modelGroup);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z, 70);
+
+    this.controls.target.copy(center);
+    this.camera.position.set(center.x + maxDim * 1.5, center.y + maxDim * 1.2, center.z + maxDim * 1.5);
+    this.controls.update();
   }
 
   onCanvasClick(event) {
@@ -267,130 +504,33 @@ export class CADEngine {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    if (!this.activeMesh) return;
+    if (this.entities.length === 0) return;
 
-    const intersects = this.raycaster.intersectObjects(this.modelGroup.children, true);
+    const visibleMeshes = [];
+    this.entities.forEach(ent => {
+      if (ent.visible) {
+        ent.mesh.traverse(c => { if (c.isMesh) visibleMeshes.push(c); });
+      }
+    });
+
+    const intersects = this.raycaster.intersectObjects(visibleMeshes, false);
     if (intersects.length > 0) {
       const hit = intersects[0];
-      if (!hit.face) return;
-
-      const normMat = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
-      const worldNorm = hit.face.normal.clone().applyMatrix3(normMat).normalize();
-
-      let desc = "Selected Surface";
-      if (Math.abs(worldNorm.y - 1) < 0.2) desc = "Top Face (+Y)";
-      else if (Math.abs(worldNorm.y + 1) < 0.2) desc = "Bottom Face (-Y)";
-      else if (Math.abs(worldNorm.z - 1) < 0.2) desc = "Front Face (+Z)";
-      else if (Math.abs(worldNorm.z + 1) < 0.2) desc = "Back Face (-Z)";
-      else if (Math.abs(worldNorm.x - 1) < 0.2) desc = "Right Face (+X)";
-      else if (Math.abs(worldNorm.x + 1) < 0.2) desc = "Left Face (-X)";
-
-      this.selectedFace = {
-        name: desc,
-        normal: worldNorm,
-        point: hit.point,
-        faceIndex: hit.faceIndex
-      };
-
-      this.highlightFace(hit.point, worldNorm);
-      if (this.onSelectionChanged) this.onSelectionChanged(this.selectedFace);
-    } else {
-      this.clearSelection();
-    }
-  }
-
-  highlightFace(pt, norm) {
-    if (this.highlightHelper) {
-      this.scene.remove(this.highlightHelper);
-      this.highlightHelper = null;
-    }
-
-    const helper = new THREE.Group();
-    const arrow = new THREE.ArrowHelper(norm, pt, 24, 0x00f2fe, 6, 4);
-    helper.add(arrow);
-
-    const disc = new THREE.Mesh(
-      new THREE.RingGeometry(1.5, 5.5, 32),
-      new THREE.MeshBasicMaterial({ color: 0x00f2fe, side: THREE.DoubleSide, transparent: true, opacity: 0.9 })
-    );
-    disc.position.copy(pt.clone().add(norm.clone().multiplyScalar(0.25)));
-    disc.lookAt(pt.clone().add(norm));
-    helper.add(disc);
-
-    this.highlightHelper = helper;
-    this.scene.add(this.highlightHelper);
-  }
-
-  clearSelection() {
-    this.selectedFace = null;
-    if (this.highlightHelper) {
-      this.scene.remove(this.highlightHelper);
-      this.highlightHelper = null;
-    }
-    if (this.onSelectionChanged) this.onSelectionChanged(null);
-  }
-
-  setActiveMesh(meshOrGroup) {
-    if (this.activeMesh) {
-      this.modelGroup.remove(this.activeMesh);
-      this.activeMesh = null;
-    }
-
-    if (meshOrGroup) {
-      meshOrGroup.traverse(child => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (!child.material || child.material.name === 'default') {
-            child.material = this.getMaterial(this.activeMaterialName);
-          }
-
-          const edges = new THREE.EdgesGeometry(child.geometry, 28);
-          const line = new THREE.LineSegments(
-            edges,
-            new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 1, transparent: true, opacity: 0.35 })
-          );
-          child.add(line);
-        }
-      });
-
-      this.activeMesh = meshOrGroup;
-      this.modelGroup.add(this.activeMesh);
-      this.applyInteriorMode();
-
-      // Frame camera nicely
-      this.resetCamera();
-
-      // Enable subtle initial turntable showcase rotation
-      this.autoRotate = true;
-
-      // Calculate stats
-      const box = new THREE.Box3().setFromObject(meshOrGroup);
-      const size = box.getSize(new THREE.Vector3());
-      let totalFaces = 0;
-      meshOrGroup.traverse(child => {
-        if (child.isMesh && child.geometry) {
-          totalFaces += child.geometry.index ? child.geometry.index.count / 3 : child.geometry.attributes.position.count / 3;
-        }
-      });
-
-      if (this.onGeometryUpdated) {
-        this.onGeometryUpdated({
-          faces: Math.round(totalFaces),
-          bounds: `${Math.round(size.x)} × ${Math.round(size.y)} × ${Math.round(size.z)} mm`
-        });
-      }
-    } else {
-      if (this.onGeometryUpdated) {
-        this.onGeometryUpdated({ faces: 0, bounds: '0 × 0 × 0 mm' });
+      const entityId = hit.object.userData.entityId;
+      if (entityId) {
+        const ent = this.entities.find(e => e.id === entityId);
+        if (ent) this.selectEntity(ent);
       }
     }
+  }
 
-    this.clearSelection();
+  captureThumbnail() {
+    this.renderer.render(this.scene, this.camera);
+    return this.canvas.toDataURL('image/jpeg', 0.85);
   }
 
   exportSTL(filename = 'voxcad_design.stl') {
-    if (!this.activeMesh) return alert('No 3D model in canvas to export.');
+    if (this.entities.length === 0) return alert('No 3D models in scene to export.');
     const exporter = new STLExporter();
     const result = exporter.parse(this.modelGroup, { binary: true });
     this.downloadFile(result, filename, 'application/octet-stream');
@@ -417,8 +557,12 @@ export class CADEngine {
   animate() {
     requestAnimationFrame(() => this.animate());
 
-    if (this.autoRotate && this.activeMesh) {
-      this.modelGroup.rotation.y += 0.006;
+    if (this.autoRotate && this.entities.length > 0) {
+      this.modelGroup.rotation.y += 0.005;
+    }
+
+    if (this.selectionBoxHelper) {
+      this.selectionBoxHelper.update();
     }
 
     if (this.controls) this.controls.update();
