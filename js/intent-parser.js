@@ -1,6 +1,5 @@
 /**
  * VoxCAD — Universal Intent & Geometry Parser
- * Understands both Visionary Procedural Concepts and Exact Mechanical Parametrics.
  */
 
 export class IntentParser {
@@ -39,10 +38,13 @@ export class IntentParser {
       return { type: 'CAMERA_VIEW', view: 'reset', message: 'Centered view on model.' };
     }
     if (normalized.includes('wireframe') || normalized.includes('lines')) {
-      return { type: 'TOGGLE_WIREFRAME', message: 'Toggled wireframe rendering.' };
+      return { type: 'TOGGLE_WIREFRAME', message: 'Toggled wireframe mode.' };
     }
     if (normalized.includes('grid')) {
       return { type: 'TOGGLE_GRID', message: 'Toggled grid floor.' };
+    }
+    if (normalized.includes('rotate') || normalized.includes('spin') || normalized.includes('turntable')) {
+      return { type: 'TOGGLE_AUTOROTATE', message: 'Toggled showcase turntable rotation.' };
     }
 
     // 2. History & Editing
@@ -56,7 +58,7 @@ export class IntentParser {
       return { type: 'CLEAR_ALL', message: 'Canvas cleared.' };
     }
 
-    // 3. Materials & Shading
+    // 3. Materials
     if (normalized.includes('brass') || normalized.includes('gold')) {
       return { type: 'SET_MATERIAL', material: 'brass', message: 'Appearance set to Machined Brass.' };
     }
@@ -73,9 +75,25 @@ export class IntentParser {
       return { type: 'SET_MATERIAL', material: 'titanium', message: 'Appearance set to Titanium Alloy.' };
     }
 
-    // 4. VISIONARY PROCEDURAL CONCEPTS ("Designs the world has never seen")
-    // A. Stealth Drone / Jet / Fighter / Aircraft
-    if (normalized.includes('drone') || normalized.includes('jet') || normalized.includes('stealth') || normalized.includes('aircraft') || normalized.includes('plane') || normalized.includes('spaceship') || normalized.includes('starship')) {
+    // 4. VISIONARY PROCEDURAL CONCEPTS
+    // Hypercar / Racing Vehicle
+    if (normalized.includes('hypercar') || normalized.includes('car') || normalized.includes('supercar') || normalized.includes('vehicle') || normalized.includes('chassis')) {
+      return {
+        type: 'CREATE_HYPERCAR',
+        message: 'Synthesized Aerodynamic Hypercar Chassis with canopy cockpit and rear wing.'
+      };
+    }
+
+    // Orbital Satellite
+    if (normalized.includes('satellite') || normalized.includes('probe') || normalized.includes('solar') || normalized.includes('spacecraft') || normalized.includes('station')) {
+      return {
+        type: 'CREATE_SATELLITE',
+        message: 'Synthesized Deep-Space Orbital Satellite with high-gain dish and solar array.'
+      };
+    }
+
+    // Stealth Drone / Jet
+    if (normalized.includes('drone') || normalized.includes('jet') || normalized.includes('stealth') || normalized.includes('aircraft') || normalized.includes('plane') || normalized.includes('fighter')) {
       return {
         type: 'CREATE_STEALTH_DRONE',
         scale: 1.0,
@@ -83,7 +101,7 @@ export class IntentParser {
       };
     }
 
-    // B. Twisted Helical Skyscraper / Tower
+    // Twisted Tower / Skyscraper
     if (normalized.includes('tower') || normalized.includes('skyscraper') || normalized.includes('twisted') || normalized.includes('helix') || normalized.includes('spiral')) {
       return {
         type: 'CREATE_TWISTED_TOWER',
@@ -93,7 +111,7 @@ export class IntentParser {
       };
     }
 
-    // C. Sci-Fi Reactor Core / Concentric Gimbal Rings
+    // Sci-Fi Reactor Core
     if (normalized.includes('reactor') || normalized.includes('core') || normalized.includes('gyroscope') || normalized.includes('gimbal') || normalized.includes('portal') || normalized.includes('tokamak')) {
       return {
         type: 'CREATE_REACTOR_CORE',
@@ -102,7 +120,7 @@ export class IntentParser {
       };
     }
 
-    // D. Cybernetic Combat Helmet / Mask
+    // Cyber Helmet
     if (normalized.includes('helmet') || normalized.includes('mask') || normalized.includes('cyber') || normalized.includes('headgear')) {
       return {
         type: 'CREATE_CYBER_HELMET',
@@ -110,64 +128,41 @@ export class IntentParser {
       };
     }
 
-    // E. Articulated Robotic Gripper / Claw
-    if (normalized.includes('claw') || normalized.includes('gripper') || normalized.includes('pincer') || normalized.includes('robot arm') || normalized.includes('mechanical hand')) {
+    // Robotic Gripper Claw
+    if (normalized.includes('claw') || normalized.includes('gripper') || normalized.includes('pincer') || normalized.includes('robot arm') || normalized.includes('robotic hand')) {
       return {
         type: 'CREATE_ROBOTIC_CLAW',
         message: 'Synthesized Articulated Robotic Gripper Claw with dual serrated pincers.'
       };
     }
 
-    // F. Precision Spur Gear
+    // Spur Gear
     if (normalized.includes('gear') || normalized.includes('sprocket') || normalized.includes('cog') || normalized.includes('pinion')) {
       const teeth = this.extractFirstNumber(normalized) || 18;
       return {
         type: 'CREATE_GEAR',
         teeth: teeth,
         radius: 38,
-        message: `Synthesized ${teeth}-Tooth Precision Spur Gear with shaft keyway.`
+        message: `Synthesized ${teeth}-Tooth Precision Spur Gear with central shaft keyway.`
       };
     }
 
-    // 5. Point & Speak Contextual Extrusion
-    if (normalized.includes('extrude') || normalized.includes('pull') || normalized.includes('push')) {
-      const dist = this.extractSingleDimension(normalized);
-      if (!selectedFace) {
-        return {
-          type: 'AMBIGUITY',
-          question: 'Please click on a face first to tell me which direction to extrude.',
-          message: 'Click a surface in the canvas first.'
-        };
-      }
-      if (!dist) {
-        return {
-          type: 'AMBIGUITY',
-          question: 'By how many millimeters should I extrude this face?',
-          message: 'Specify extrusion distance in mm.'
-        };
-      }
+    // 5. MECHANICAL CAD
+    // Plate with Hole or Cut Hole
+    if (normalized.includes('hole') || normalized.includes('bore') || normalized.includes('pocket') || normalized.includes('cut') || normalized.includes('mounting plate')) {
+      const dia = this.extractDiameter(normalized) || 24;
       return {
-        type: 'EXTRUDE_FACE',
-        distance: dist,
-        face: selectedFace,
-        message: `Extruded ${selectedFace.name} by ${dist}mm.`
-      };
-    }
-
-    // 6. Cut Hole / Hollow Center
-    if (normalized.includes('cut') || normalized.includes('hole') || normalized.includes('bore') || normalized.includes('hollow') || normalized.includes('pocket')) {
-      const dia = this.extractDiameter(normalized) || this.extractSingleDimension(normalized) || 25;
-      return {
-        type: 'CUT_HOLE',
+        type: 'CREATE_PLATE_WITH_HOLE',
+        width: 100,
+        depth: 80,
+        height: 15,
         diameter: dia,
-        throughAll: true,
-        face: selectedFace,
-        message: `Cut Ø${dia}mm hole through center.`
+        message: `Synthesized Machined Mounting Plate with Ø${dia}mm center bore and 4 corner bolt holes.`
       };
     }
 
-    // 7. Base Box / Plate / Enclosure
-    if (normalized.includes('box') || normalized.includes('plate') || normalized.includes('cube') || normalized.includes('block') || normalized.includes('enclosure')) {
+    // Box / Enclosure
+    if (normalized.includes('box') || normalized.includes('cube') || normalized.includes('plate') || normalized.includes('block')) {
       const dims = this.extractThreeDimensions(normalized);
       if (dims) {
         return {
@@ -175,17 +170,7 @@ export class IntentParser {
           width: dims.w,
           depth: dims.d,
           height: dims.h,
-          message: `Created plate ${dims.w} × ${dims.d} × ${dims.h} mm.`
-        };
-      }
-      const single = this.extractSingleDimension(normalized);
-      if (single) {
-        return {
-          type: 'CREATE_BOX',
-          width: single,
-          depth: single,
-          height: single,
-          message: `Created cube ${single} × ${single} × ${single} mm.`
+          message: `Created solid box ${dims.w} × ${dims.d} × ${dims.h} mm.`
         };
       }
       return {
@@ -193,25 +178,23 @@ export class IntentParser {
         width: 100,
         depth: 80,
         height: 15,
-        message: `Created base plate 100 × 80 × 15 mm.`
+        message: `Created solid block 100 × 80 × 15 mm.`
       };
     }
 
-    // 8. Cylinder / Rod
-    if (normalized.includes('cylinder') || normalized.includes('rod') || normalized.includes('pin') || normalized.includes('boss')) {
-      const dia = this.extractDiameter(normalized) || this.extractFirstNumber(normalized) || 30;
-      const h = this.extractHeight(normalized) || this.extractSecondNumber(normalized) || 40;
+    // Cylinder / Rod
+    if (normalized.includes('cylinder') || normalized.includes('rod') || normalized.includes('pin')) {
+      const dia = this.extractDiameter(normalized) || this.extractFirstNumber(normalized) || 32;
+      const h = this.extractHeight(normalized) || this.extractSecondNumber(normalized) || 45;
       return {
         type: 'CREATE_CYLINDER',
         diameter: dia,
         height: h,
-        onSelectedFace: !!selectedFace,
-        face: selectedFace,
         message: `Created cylinder Ø${dia}mm × ${h}mm height.`
       };
     }
 
-    // 9. Sphere
+    // Sphere
     if (normalized.includes('sphere') || normalized.includes('ball') || normalized.includes('dome')) {
       const rad = this.extractRadius(normalized) || this.extractSingleDimension(normalized) || 25;
       return {
@@ -221,33 +204,37 @@ export class IntentParser {
       };
     }
 
-    // Fallback: Default to creative drone concept if phrase is unknown
+    // Extrude
+    if (normalized.includes('extrude') || normalized.includes('pull') || normalized.includes('push')) {
+      const dist = this.extractSingleDimension(normalized) || 20;
+      return {
+        type: 'EXTRUDE_FACE',
+        distance: dist,
+        message: `Extruded feature by ${dist}mm.`
+      };
+    }
+
+    // Default Fallback
     return {
       type: 'CREATE_STEALTH_DRONE',
       scale: 1.0,
-      message: `Interpreting "${text}": Generated custom stealth concept design.`
+      message: `Interpreting "${text}": Synthesized Futuristic Stealth Concept.`
     };
   }
 
   normalizeText(str) {
     let s = str;
-    s = s.replace(/half an inch/g, '12.7 mm');
-    s = s.replace(/an inch/g, '25.4 mm');
-
     for (const [word, num] of Object.entries(this.wordToNum)) {
       const reg = new RegExp(`\\b${word}\\b`, 'g');
       s = s.replace(reg, num);
     }
-
     s = s.replace(/\s*(by|x|\*)\s*/g, ' x ');
     return s;
   }
 
   extractThreeDimensions(text) {
     const match = text.match(/(\d+(?:\.\d+)?)\s*(?:mm)?\s*x\s*(\d+(?:\.\d+)?)\s*(?:mm)?\s*x\s*(\d+(?:\.\d+)?)/i);
-    if (match) {
-      return { w: parseFloat(match[1]), d: parseFloat(match[2]), h: parseFloat(match[3]) };
-    }
+    if (match) return { w: parseFloat(match[1]), d: parseFloat(match[2]), h: parseFloat(match[3]) };
     const numbers = text.match(/\b\d+(?:\.\d+)?\b/g);
     if (numbers && numbers.length >= 3) {
       return { w: parseFloat(numbers[0]), d: parseFloat(numbers[1]), h: parseFloat(numbers[2]) };

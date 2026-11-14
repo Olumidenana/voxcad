@@ -1,6 +1,5 @@
 /**
  * VoxCAD — Universal Orchestrator
- * Connects 3D Viewport, Speech Recognition, Intent Parsing & UI Controls
  */
 
 import { CADEngine } from './cad-engine.js';
@@ -15,7 +14,6 @@ class VoxCADApp {
     this.intentParser = null;
     this.featureTree = null;
 
-    // Cache Elements
     this.dom = {
       container: document.getElementById('viewportContainer'),
       canvas: document.getElementById('threeCanvas'),
@@ -40,6 +38,7 @@ class VoxCADApp {
       featureTreeList: document.getElementById('featureTreeList'),
       emptyTreeState: document.getElementById('emptyTreeState'),
       btnClearAll: document.getElementById('btnClearAll'),
+      btnToggleTurntable: document.getElementById('btnToggleTurntable'),
       btnToggleWireframe: document.getElementById('btnToggleWireframe'),
       btnToggleGrid: document.getElementById('btnToggleGrid'),
       btnResetCamera: document.getElementById('btnResetCamera')
@@ -49,29 +48,29 @@ class VoxCADApp {
   }
 
   async init() {
-    // 1. Subsystems
-    this.cadEngine = new CADEngine(this.dom.container, this.dom.canvas);
-    this.featureTree = new FeatureTree(this.cadEngine);
-    this.intentParser = new IntentParser();
-    this.voiceEngine = new VoiceEngine();
+    try {
+      this.cadEngine = new CADEngine(this.dom.container, this.dom.canvas);
+      this.featureTree = new FeatureTree(this.cadEngine);
+      this.intentParser = new IntentParser();
+      this.voiceEngine = new VoiceEngine();
 
-    // 2. Wire Callbacks
-    this.setupSubsystems();
+      this.setupSubsystems();
+      this.setupUI();
 
-    // 3. UI Listeners
-    this.setupUI();
-
-    // 4. Start with a Futuristic Stealth Jet Drone
-    await this.featureTree.addOperation({
-      type: 'CREATE_STEALTH_DRONE',
-      scale: 1.0,
-      description: 'Futuristic Stealth Drone Fuselage & Stabilizers'
-    });
-    this.updateMessage('Created Futuristic Stealth Drone. Speak or type: "Twisted tower", "Cut hole", or "Make it brass"!');
+      // Launch with the Futuristic Stealth Drone
+      await this.featureTree.addOperation({
+        type: 'CREATE_STEALTH_DRONE',
+        scale: 1.0,
+        description: 'Futuristic Stealth Drone'
+      });
+      this.updateMessage('Created Futuristic Stealth Drone. Speak or type to design anything!');
+    } catch (err) {
+      console.error('VoxCAD initialization failed:', err);
+      this.showNotification(`Error starting VoxCAD: ${err.message}`);
+    }
   }
 
   setupSubsystems() {
-    // Selection Callback
     this.cadEngine.onSelectionChanged = (faceInfo) => {
       if (faceInfo) {
         this.dom.selectedEntityLabel.textContent = `${faceInfo.name} Selected`;
@@ -81,13 +80,11 @@ class VoxCADApp {
       }
     };
 
-    // Stats Callback
     this.cadEngine.onGeometryUpdated = (stats) => {
       this.dom.statFaces.textContent = stats.faces.toLocaleString();
       this.dom.statBounds.textContent = stats.bounds;
     };
 
-    // Voice Engine Callbacks
     this.voiceEngine.onTranscriptUpdate = (text, isFinal) => {
       if (text) {
         this.dom.commandInput.value = text;
@@ -121,8 +118,7 @@ class VoxCADApp {
   }
 
   setupUI() {
-    // Drawer Toggle
-    this.dom.sideDrawer.classList.add('collapsed'); // Default collapsed for clean view
+    this.dom.sideDrawer.classList.add('collapsed');
     this.dom.btnToggleSidePanel.addEventListener('click', () => {
       this.dom.sideDrawer.classList.toggle('collapsed');
     });
@@ -130,12 +126,10 @@ class VoxCADApp {
       this.dom.sideDrawer.classList.add('collapsed');
     });
 
-    // Mic Button
     this.dom.btnMic.addEventListener('click', () => {
       this.voiceEngine.toggleListening();
     });
 
-    // Form Submit
     this.dom.commandForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = this.dom.commandInput.value.trim();
@@ -145,7 +139,6 @@ class VoxCADApp {
       }
     });
 
-    // Inspiration Chips
     document.querySelectorAll('.pill-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const cmd = chip.getAttribute('data-cmd');
@@ -153,7 +146,6 @@ class VoxCADApp {
       });
     });
 
-    // Material Cards
     document.querySelectorAll('.mat-card').forEach(card => {
       card.addEventListener('click', () => {
         document.querySelectorAll('.mat-card').forEach(c => c.classList.remove('active'));
@@ -164,7 +156,6 @@ class VoxCADApp {
       });
     });
 
-    // View Presets
     document.querySelectorAll('.glass-pill-group .pill-btn[data-view]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.glass-pill-group .pill-btn[data-view]').forEach(b => b.classList.remove('active'));
@@ -173,28 +164,33 @@ class VoxCADApp {
       });
     });
 
-    // Viewport Actions
+    this.dom.btnToggleTurntable.addEventListener('click', () => {
+      const active = this.cadEngine.toggleAutoRotate();
+      this.dom.btnToggleTurntable.classList.toggle('active', active);
+      this.updateMessage(active ? 'Showcase rotation enabled' : 'Rotation paused');
+    });
+
     this.dom.btnToggleWireframe.addEventListener('click', () => {
       const active = this.cadEngine.toggleWireframe();
       this.dom.btnToggleWireframe.classList.toggle('active', active);
+      this.updateMessage(active ? 'Wireframe mode' : 'Solid shaded mode');
     });
 
     this.dom.btnToggleGrid.addEventListener('click', () => {
       const active = this.cadEngine.toggleGrid();
       this.dom.btnToggleGrid.classList.toggle('active', active);
+      this.updateMessage(active ? 'Grid floor visible' : 'Grid floor hidden');
     });
 
     this.dom.btnResetCamera.addEventListener('click', () => {
       this.cadEngine.resetCamera();
     });
 
-    // Export STL
     this.dom.btnQuickExportSTL.addEventListener('click', () => {
       this.cadEngine.exportSTL('voxcad_design.stl');
       this.showNotification('Exported 3D printable STL file!');
     });
 
-    // Copy Python Code
     this.dom.btnCopyCode.addEventListener('click', () => {
       const code = this.featureTree.generatePythonCADCode();
       navigator.clipboard.writeText(code).then(() => {
@@ -202,17 +198,14 @@ class VoxCADApp {
       });
     });
 
-    // Selection Dismiss
     this.dom.btnDismissSelection.addEventListener('click', () => {
       this.cadEngine.clearSelection();
     });
 
-    // Notification Banner Close
     this.dom.btnCloseNotification.addEventListener('click', () => {
       this.dom.notificationBanner.classList.add('hidden');
     });
 
-    // Clear All
     this.dom.btnClearAll.addEventListener('click', () => {
       if (confirm('Clear canvas and reset?')) {
         this.featureTree.clear();
@@ -220,7 +213,6 @@ class VoxCADApp {
       }
     });
 
-    // Keyboard Shortcuts
     let spaceDown = false;
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT') return;
@@ -261,12 +253,15 @@ class VoxCADApp {
         this.voiceEngine.speak(intent.question);
         break;
 
+      case 'CREATE_HYPERCAR':
+      case 'CREATE_SATELLITE':
       case 'CREATE_STEALTH_DRONE':
       case 'CREATE_TWISTED_TOWER':
       case 'CREATE_REACTOR_CORE':
       case 'CREATE_CYBER_HELMET':
       case 'CREATE_ROBOTIC_CLAW':
       case 'CREATE_GEAR':
+      case 'CREATE_PLATE_WITH_HOLE':
       case 'CREATE_BOX':
       case 'CREATE_CYLINDER':
       case 'CREATE_SPHERE':
@@ -296,28 +291,34 @@ class VoxCADApp {
       case 'TOGGLE_WIREFRAME':
         const wire = this.cadEngine.toggleWireframe();
         this.dom.btnToggleWireframe.classList.toggle('active', wire);
-        this.updateMessage(wire ? 'Wireframe enabled' : 'Solid shaded mode');
+        this.updateMessage(wire ? 'Wireframe mode' : 'Solid shaded mode');
         break;
 
       case 'TOGGLE_GRID':
         const grid = this.cadEngine.toggleGrid();
         this.dom.btnToggleGrid.classList.toggle('active', grid);
-        this.updateMessage(grid ? 'Grid enabled' : 'Grid hidden');
+        this.updateMessage(grid ? 'Grid floor visible' : 'Grid floor hidden');
+        break;
+
+      case 'TOGGLE_AUTOROTATE':
+        const rot = this.cadEngine.toggleAutoRotate();
+        this.dom.btnToggleTurntable.classList.toggle('active', rot);
+        this.updateMessage(rot ? 'Showcase rotation enabled' : 'Rotation paused');
         break;
 
       case 'UNDO':
-        const undone = await this.featureTree.undo();
+        const undone = this.featureTree.undo();
         this.updateMessage(undone ? 'Undid last feature.' : 'Nothing to undo.');
         this.voiceEngine.speak(undone ? 'Undid last feature' : 'Nothing to undo');
         break;
 
       case 'REDO':
-        const redone = await this.featureTree.redo();
+        const redone = this.featureTree.redo();
         this.updateMessage(redone ? 'Redid feature.' : 'Nothing to redo.');
         break;
 
       case 'CLEAR_ALL':
-        await this.featureTree.clear();
+        this.featureTree.clear();
         this.updateMessage('Canvas reset to empty.');
         this.voiceEngine.speak('Canvas cleared');
         break;

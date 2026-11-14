@@ -6,18 +6,17 @@
   <title>VoxCAD — Voice-Driven 3D & Design Studio</title>
   <link rel="stylesheet" href="styles.css">
   
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Three.js & CSG -->
+  <!-- Local Vendor Import Map: 100% Self-Contained & Offline-Ready -->
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "three-bvh-csg": "https://unpkg.com/three-bvh-csg@0.0.16/build/index.module.js"
+        "three": "./vendor/three.module.js",
+        "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js",
+        "three/addons/exporters/STLExporter.js": "./vendor/STLExporter.js"
       }
     }
   </script>
@@ -32,7 +31,7 @@
     <!-- Top Floating Header Bar -->
     <header class="floating-header">
       <div class="header-left">
-        <button id="btnToggleSidePanel" class="hud-btn" title="Toggle Feature History & Appearance">
+        <button id="btnToggleSidePanel" class="hud-btn" title="Toggle Feature History & Materials">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -57,6 +56,9 @@
           <button class="pill-btn" data-view="right" title="Right View">RIGHT</button>
         </div>
         <div class="glass-pill-group">
+          <button id="btnToggleTurntable" class="pill-btn icon-only active" title="Toggle Showcase Turntable Spin">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </button>
           <button id="btnToggleWireframe" class="pill-btn icon-only" title="Toggle Wireframe">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
           </button>
@@ -186,7 +188,7 @@
           <input 
             type="text" 
             id="commandInput" 
-            placeholder="Speak or type: 'Futuristic stealth drone', 'Twisted spiral tower', 'Mounting plate'..." 
+            placeholder="Speak or type: 'Futuristic hypercar', 'Stealth drone', 'Twisted tower', 'Mounting plate'..." 
             autocomplete="off"
           />
           <button type="submit" class="submit-btn" title="Generate 3D Design">
@@ -202,13 +204,15 @@
       <div class="inspiration-pills">
         <span class="pills-label">Inspiration:</span>
         <div class="pills-scroll">
+          <button class="pill-chip" data-cmd="Create a futuristic aerodynamic hypercar chassis">🏎️ Hypercar</button>
+          <button class="pill-chip" data-cmd="Create an orbital deep-space satellite with solar panels">🪐 Satellite</button>
           <button class="pill-chip" data-cmd="Create a futuristic stealth jet drone">🛸 Stealth Drone</button>
           <button class="pill-chip" data-cmd="Design a twisted helical skyscraper tower">🏛️ Twisted Tower</button>
           <button class="pill-chip" data-cmd="Create a sci-fi reactor core with gimbal rings">⚛️ Reactor Core</button>
           <button class="pill-chip" data-cmd="Design a robotic gripper mechanical claw">🦾 Robotic Claw</button>
-          <button class="pill-chip" data-cmd="Create a mounting plate 100 by 80 by 15 mm with center hole">⚙️ Mounting Plate</button>
-          <button class="pill-chip" data-cmd="Design a cybernetic combat helmet">🪖 Cyber Helmet</button>
-          <button class="pill-chip" data-cmd="Make it metallic brass">✨ Brass Shading</button>
+          <button class="pill-chip" data-cmd="Design a precision 18 tooth spur gear">⚙️ Spur Gear</button>
+          <button class="pill-chip" data-cmd="Create a mounting plate 100 by 80 by 15 mm with center hole">📐 Mounting Plate</button>
+          <button class="pill-chip" data-cmd="Make it metallic brass">✨ Brass</button>
           <button class="pill-chip" data-cmd="Undo last step">↩️ Undo</button>
         </div>
       </div>
@@ -229,7 +233,6 @@
     </footer>
   </div>
 
-  <!-- Main Modules -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

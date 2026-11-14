@@ -1,12 +1,11 @@
 /**
- * VoxCAD — Viewport & Universal 3D Design Synthesizer
- * Powered by Three.js & Constructive Solid Geometry (CSG)
+ * VoxCAD — Viewport & Scene Management
+ * 100% Local Vendor Three.js (Zero CDN dependencies)
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
-import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 
 export class CADEngine {
   constructor(canvasContainer, canvasElement) {
@@ -20,22 +19,19 @@ export class CADEngine {
     this.grid = null;
     this.axes = null;
 
-    // Active Model & Selection
     this.modelGroup = new THREE.Group();
     this.activeMesh = null;
-    this.highlightHelper = null;
     this.selectedFace = null;
+    this.highlightHelper = null;
 
-    // Display Options
     this.isWireframe = false;
     this.showGrid = true;
+    this.autoRotate = false;
     this.activeMaterialName = 'titanium';
 
-    // Raycaster for Point & Speak
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
-    // Callbacks
     this.onSelectionChanged = null;
     this.onGeometryUpdated = null;
 
@@ -44,7 +40,7 @@ export class CADEngine {
 
   init() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x05070c);
+    this.scene.background = new THREE.Color(0x06080f);
     this.scene.add(this.modelGroup);
 
     const aspect = this.container.clientWidth / this.container.clientHeight;
@@ -64,9 +60,14 @@ export class CADEngine {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
-    this.controls.maxDistance = 2000;
-    this.controls.minDistance = 5;
-    this.controls.target.set(0, 15, 0);
+    this.controls.maxDistance = 1800;
+    this.controls.minDistance = 10;
+    this.controls.target.set(0, 20, 0);
+
+    // Stop auto-rotate as soon as user touches the canvas
+    this.controls.addEventListener('start', () => {
+      this.autoRotate = false;
+    });
 
     this.setupLighting();
     this.setupGrid();
@@ -78,32 +79,32 @@ export class CADEngine {
   }
 
   setupLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
     this.scene.add(ambient);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.3);
-    keyLight.position.set(150, 220, 180);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    this.scene.add(keyLight);
+    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    key.position.set(160, 240, 180);
+    key.castShadow = true;
+    key.shadow.mapSize.width = 2048;
+    key.shadow.mapSize.height = 2048;
+    this.scene.add(key);
 
-    const cyanRim = new THREE.DirectionalLight(0x38bdf8, 0.6);
-    cyanRim.position.set(-180, 120, -150);
-    this.scene.add(cyanRim);
+    const rim = new THREE.DirectionalLight(0x38bdf8, 0.65);
+    rim.position.set(-180, 100, -160);
+    this.scene.add(rim);
 
-    const bottomGlow = new THREE.DirectionalLight(0x0284c7, 0.3);
-    bottomGlow.position.set(0, -100, 0);
-    this.scene.add(bottomGlow);
+    const warmFill = new THREE.DirectionalLight(0xf59e0b, 0.25);
+    warmFill.position.set(140, -60, -100);
+    this.scene.add(warmFill);
   }
 
   setupGrid() {
-    this.grid = new THREE.GridHelper(400, 40, 0x0284c7, 0x1e293b);
+    this.grid = new THREE.GridHelper(360, 36, 0x0284c7, 0x172554);
     this.grid.position.y = 0;
     this.scene.add(this.grid);
 
     this.axes = new THREE.AxesHelper(35);
-    this.axes.position.set(-180, 0.5, -180);
+    this.axes.position.set(-160, 0.5, -160);
     this.scene.add(this.axes);
   }
 
@@ -112,25 +113,25 @@ export class CADEngine {
       'titanium': new THREE.MeshStandardMaterial({
         color: 0x94a3b8,
         metalness: 0.85,
-        roughness: 0.25,
+        roughness: 0.22,
         wireframe: this.isWireframe
       }),
       'brass': new THREE.MeshStandardMaterial({
         color: 0xf59e0b,
-        metalness: 0.9,
-        roughness: 0.2,
+        metalness: 0.92,
+        roughness: 0.18,
         wireframe: this.isWireframe
       }),
       'aluminum': new THREE.MeshStandardMaterial({
         color: 0x38bdf8,
-        metalness: 0.75,
-        roughness: 0.3,
+        metalness: 0.8,
+        roughness: 0.25,
         wireframe: this.isWireframe
       }),
       'matte-black': new THREE.MeshStandardMaterial({
         color: 0x1e293b,
-        metalness: 0.2,
-        roughness: 0.6,
+        metalness: 0.25,
+        roughness: 0.55,
         wireframe: this.isWireframe
       }),
       'copper': new THREE.MeshStandardMaterial({
@@ -152,13 +153,13 @@ export class CADEngine {
     }
   }
 
-  setCameraView(viewName) {
+  setCameraView(view) {
     const dist = 180;
-    const target = this.controls ? this.controls.target : new THREE.Vector3(0, 15, 0);
+    const target = this.controls ? this.controls.target : new THREE.Vector3(0, 20, 0);
 
-    switch (viewName) {
+    switch (view) {
       case 'iso':
-        this.camera.position.set(dist * 0.8, dist * 0.7, dist * 0.8);
+        this.camera.position.set(dist * 0.85, dist * 0.75, dist * 0.85);
         break;
       case 'top':
         this.camera.position.set(target.x, target.y + dist * 1.3, target.z + 0.001);
@@ -191,6 +192,11 @@ export class CADEngine {
     return this.showGrid;
   }
 
+  toggleAutoRotate() {
+    this.autoRotate = !this.autoRotate;
+    return this.autoRotate;
+  }
+
   resetCamera() {
     if (this.activeMesh) {
       const box = new THREE.Box3().setFromObject(this.activeMesh);
@@ -220,48 +226,47 @@ export class CADEngine {
       const hit = intersects[0];
       if (!hit.face) return;
 
-      const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
-      const worldNormal = hit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+      const normMat = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+      const worldNorm = hit.face.normal.clone().applyMatrix3(normMat).normalize();
 
       let desc = "Selected Surface";
-      if (Math.abs(worldNormal.y - 1) < 0.2) desc = "Top Face (+Y)";
-      else if (Math.abs(worldNormal.y + 1) < 0.2) desc = "Bottom Face (-Y)";
-      else if (Math.abs(worldNormal.z - 1) < 0.2) desc = "Front Face (+Z)";
-      else if (Math.abs(worldNormal.z + 1) < 0.2) desc = "Back Face (-Z)";
-      else if (Math.abs(worldNormal.x - 1) < 0.2) desc = "Right Face (+X)";
-      else if (Math.abs(worldNormal.x + 1) < 0.2) desc = "Left Face (-X)";
+      if (Math.abs(worldNorm.y - 1) < 0.2) desc = "Top Face (+Y)";
+      else if (Math.abs(worldNorm.y + 1) < 0.2) desc = "Bottom Face (-Y)";
+      else if (Math.abs(worldNorm.z - 1) < 0.2) desc = "Front Face (+Z)";
+      else if (Math.abs(worldNorm.z + 1) < 0.2) desc = "Back Face (-Z)";
+      else if (Math.abs(worldNorm.x - 1) < 0.2) desc = "Right Face (+X)";
+      else if (Math.abs(worldNorm.x + 1) < 0.2) desc = "Left Face (-X)";
 
       this.selectedFace = {
         name: desc,
-        normal: worldNormal,
+        normal: worldNorm,
         point: hit.point,
         faceIndex: hit.faceIndex
       };
 
-      this.highlightFace(hit.point, worldNormal);
-
+      this.highlightFace(hit.point, worldNorm);
       if (this.onSelectionChanged) this.onSelectionChanged(this.selectedFace);
     } else {
       this.clearSelection();
     }
   }
 
-  highlightFace(point, normal) {
+  highlightFace(pt, norm) {
     if (this.highlightHelper) {
       this.scene.remove(this.highlightHelper);
       this.highlightHelper = null;
     }
 
     const helper = new THREE.Group();
-    const arrow = new THREE.ArrowHelper(normal, point, 22, 0x00f2fe, 6, 4);
+    const arrow = new THREE.ArrowHelper(norm, pt, 24, 0x00f2fe, 6, 4);
     helper.add(arrow);
 
     const disc = new THREE.Mesh(
-      new THREE.RingGeometry(1, 5, 32),
-      new THREE.MeshBasicMaterial({ color: 0x00f2fe, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+      new THREE.RingGeometry(1.5, 5.5, 32),
+      new THREE.MeshBasicMaterial({ color: 0x00f2fe, side: THREE.DoubleSide, transparent: true, opacity: 0.9 })
     );
-    disc.position.copy(point.clone().add(normal.clone().multiplyScalar(0.2)));
-    disc.lookAt(point.clone().add(normal));
+    disc.position.copy(pt.clone().add(norm.clone().multiplyScalar(0.25)));
+    disc.lookAt(pt.clone().add(norm));
     helper.add(disc);
 
     this.highlightHelper = helper;
@@ -290,8 +295,7 @@ export class CADEngine {
           child.receiveShadow = true;
           child.material = this.getMaterial(this.activeMaterialName);
 
-          // Add subtle architectural edge lines
-          const edges = new THREE.EdgesGeometry(child.geometry, 25);
+          const edges = new THREE.EdgesGeometry(child.geometry, 28);
           const line = new THREE.LineSegments(
             edges,
             new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 1, transparent: true, opacity: 0.4 })
@@ -303,7 +307,13 @@ export class CADEngine {
       this.activeMesh = meshOrGroup;
       this.modelGroup.add(this.activeMesh);
 
-      // Compute stats
+      // Frame camera nicely
+      this.resetCamera();
+
+      // Enable subtle initial turntable showcase rotation
+      this.autoRotate = true;
+
+      // Calculate stats
       const box = new THREE.Box3().setFromObject(meshOrGroup);
       const size = box.getSize(new THREE.Vector3());
       let totalFaces = 0;
@@ -335,13 +345,6 @@ export class CADEngine {
     this.downloadFile(result, filename, 'application/octet-stream');
   }
 
-  exportOBJ(filename = 'voxcad_design.obj') {
-    if (!this.activeMesh) return alert('No 3D model in canvas to export.');
-    const exporter = new OBJExporter();
-    const result = exporter.parse(this.modelGroup);
-    this.downloadFile(result, filename, 'text/plain');
-  }
-
   downloadFile(data, filename, type) {
     const blob = new Blob([data], { type });
     const link = document.createElement('a');
@@ -362,6 +365,11 @@ export class CADEngine {
 
   animate() {
     requestAnimationFrame(() => this.animate());
+
+    if (this.autoRotate && this.activeMesh) {
+      this.modelGroup.rotation.y += 0.006;
+    }
+
     if (this.controls) this.controls.update();
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
