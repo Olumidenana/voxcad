@@ -11,7 +11,7 @@ export class GeminiSynthesizer {
     this.cadEngine = cadEngine;
     // Load key from localStorage or local gitignored config
     this.apiKey = localStorage.getItem('voxcad_gemini_api_key') || '';
-    this.modelCandidates = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-latest'];
+    this.modelCandidates = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-latest'];
     this.activeModel = 'gemini-3.5-flash';
 
     this.initLocalConfig();
