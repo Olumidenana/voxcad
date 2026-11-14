@@ -1,6 +1,5 @@
 /**
- * VoxCAD — Conversational AI 3D Studio Orchestrator
- * Full Conversational Loop: Synthesize -> Explain & Prompt -> Follow-up -> Auto-Timeout
+ * VoxCAD — Conversational & Parametric 3D Studio Orchestrator
  */
 
 import { CADEngine } from './cad-engine.js';
@@ -15,7 +14,6 @@ class VoxCADApp {
     this.intentParser = null;
     this.featureTree = null;
 
-    // Conversational State
     this.isAwaitingFollowup = false;
 
     this.dom = {
@@ -24,6 +22,23 @@ class VoxCADApp {
       btnToggleSidePanel: document.getElementById('btnToggleSidePanel'),
       btnCloseDrawer: document.getElementById('btnCloseDrawer'),
       sideDrawer: document.getElementById('sideDrawer'),
+      btnToggleInspector: document.getElementById('btnToggleInspector'),
+      btnCloseInspector: document.getElementById('btnCloseInspector'),
+      metricInspector: document.getElementById('metricInspector'),
+      metricObjectTitle: document.getElementById('metricObjectTitle'),
+      metricLengthVal: document.getElementById('metricLengthVal'),
+      metricWidthVal: document.getElementById('metricWidthVal'),
+      metricHeightVal: document.getElementById('metricHeightVal'),
+      metricFacesVal: document.getElementById('metricFacesVal'),
+      sliderScaleX: document.getElementById('sliderScaleX'),
+      scaleXNum: document.getElementById('scaleXNum'),
+      sliderScaleY: document.getElementById('sliderScaleY'),
+      scaleYNum: document.getElementById('scaleYNum'),
+      sliderScaleZ: document.getElementById('sliderScaleZ'),
+      scaleZNum: document.getElementById('scaleZNum'),
+      sliderRotation: document.getElementById('sliderRotation'),
+      rotationNum: document.getElementById('rotationNum'),
+      btnResetTweaks: document.getElementById('btnResetTweaks'),
       btnMic: document.getElementById('btnMic'),
       commandForm: document.getElementById('commandForm'),
       commandInput: document.getElementById('commandInput'),
@@ -63,10 +78,10 @@ class VoxCADApp {
       this.setupSubsystems();
       this.setupUI();
 
-      // Start with 100% BLANK canvas
+      // Start 100% BLANK
       this.featureTree.clear();
       this.showStandbyState(true);
-      this.updateMessage('Awaiting your vision. Tap the mic or type: "Create a stealth drone", "Hypercar", or "Twisted tower"...');
+      this.updateMessage('Canvas ready. Speak or type: "Mercedes car", "A tire", "A circle", "A coffee mug"...');
     } catch (err) {
       console.error('VoxCAD failed to initialize:', err);
       this.showNotification(`Error: ${err.message}`);
@@ -86,10 +101,36 @@ class VoxCADApp {
     this.cadEngine.onGeometryUpdated = (stats) => {
       this.dom.statFaces.textContent = stats.faces.toLocaleString();
       this.dom.statBounds.textContent = stats.bounds;
+      this.dom.metricFacesVal.textContent = stats.faces.toLocaleString();
       this.showStandbyState(stats.faces === 0);
     };
 
-    this.voiceEngine.onTranscriptUpdate = (text, isFinal) => {
+    // Metrics Inspector live update
+    this.featureTree.onMetricsUpdated = (metrics) => {
+      if (metrics) {
+        this.dom.metricObjectTitle.textContent = metrics.title || 'Active Design';
+        this.dom.metricLengthVal.textContent = `${metrics.length} mm`;
+        this.dom.metricWidthVal.textContent = `${metrics.width} mm`;
+        this.dom.metricHeightVal.textContent = `${metrics.height} mm`;
+
+        this.dom.sliderScaleX.value = metrics.scaleX || 1.0;
+        this.dom.scaleXNum.textContent = `${(metrics.scaleX || 1.0).toFixed(2)}×`;
+        this.dom.sliderScaleY.value = metrics.scaleY || 1.0;
+        this.dom.scaleYNum.textContent = `${(metrics.scaleY || 1.0).toFixed(2)}×`;
+        this.dom.sliderScaleZ.value = metrics.scaleZ || 1.0;
+        this.dom.scaleZNum.textContent = `${(metrics.scaleZ || 1.0).toFixed(2)}×`;
+        this.dom.sliderRotation.value = metrics.rotationY || 0;
+        this.dom.rotationNum.textContent = `${metrics.rotationY || 0}°`;
+      } else {
+        this.dom.metricObjectTitle.textContent = 'Design Inspector';
+        this.dom.metricLengthVal.textContent = '0 mm';
+        this.dom.metricWidthVal.textContent = '0 mm';
+        this.dom.metricHeightVal.textContent = '0 mm';
+        this.dom.metricFacesVal.textContent = '0';
+      }
+    };
+
+    this.voiceEngine.onTranscriptUpdate = (text) => {
       if (text) {
         this.dom.commandInput.value = text;
         this.updateMessage(`Hearing: "${text}"...`);
@@ -104,7 +145,7 @@ class VoxCADApp {
       if (status === 'listening') {
         this.dom.btnMic.classList.add('listening');
         if (this.isAwaitingFollowup) {
-          this.dom.micStateLabel.textContent = 'Listening for your changes... (8s auto-timeout)';
+          this.dom.micStateLabel.textContent = 'Listening for adjustments... (8s auto-timeout)';
         } else {
           this.dom.micStateLabel.textContent = 'Listening... Speak your vision now';
         }
@@ -126,6 +167,7 @@ class VoxCADApp {
   }
 
   setupUI() {
+    // Drawer Toggles
     this.dom.sideDrawer.classList.add('collapsed');
     this.dom.btnToggleSidePanel.addEventListener('click', () => {
       this.dom.sideDrawer.classList.toggle('collapsed');
@@ -134,6 +176,46 @@ class VoxCADApp {
       this.dom.sideDrawer.classList.add('collapsed');
     });
 
+    // Inspector Toggle
+    this.dom.btnToggleInspector.addEventListener('click', () => {
+      const isCollapsed = this.dom.metricInspector.classList.toggle('collapsed');
+      this.dom.btnToggleInspector.classList.toggle('active', !isCollapsed);
+    });
+    this.dom.btnCloseInspector.addEventListener('click', () => {
+      this.dom.metricInspector.classList.add('collapsed');
+      this.dom.btnToggleInspector.classList.remove('active');
+    });
+
+    // Real-Time Manual Tweak Sliders
+    const onSliderChange = () => {
+      const sx = parseFloat(this.dom.sliderScaleX.value);
+      const sy = parseFloat(this.dom.sliderScaleY.value);
+      const sz = parseFloat(this.dom.sliderScaleZ.value);
+      const rot = parseInt(this.dom.sliderRotation.value);
+
+      this.dom.scaleXNum.textContent = `${sx.toFixed(2)}×`;
+      this.dom.scaleYNum.textContent = `${sy.toFixed(2)}×`;
+      this.dom.scaleZNum.textContent = `${sz.toFixed(2)}×`;
+      this.dom.rotationNum.textContent = `${rot}°`;
+
+      this.featureTree.updateActiveFeatureScale(sx, sy, sz);
+      this.featureTree.updateActiveFeatureRotation(rot);
+    };
+
+    this.dom.sliderScaleX.addEventListener('input', onSliderChange);
+    this.dom.sliderScaleY.addEventListener('input', onSliderChange);
+    this.dom.sliderScaleZ.addEventListener('input', onSliderChange);
+    this.dom.sliderRotation.addEventListener('input', onSliderChange);
+
+    this.dom.btnResetTweaks.addEventListener('click', () => {
+      this.dom.sliderScaleX.value = 1.0;
+      this.dom.sliderScaleY.value = 1.0;
+      this.dom.sliderScaleZ.value = 1.0;
+      this.dom.sliderRotation.value = 0;
+      onSliderChange();
+    });
+
+    // Mic Button
     this.dom.btnMic.addEventListener('click', () => {
       this.isAwaitingFollowup = false;
       this.voiceEngine.toggleListening();
@@ -142,7 +224,7 @@ class VoxCADApp {
     if (this.dom.btnTestMic) {
       this.dom.btnTestMic.addEventListener('click', () => {
         this.voiceEngine.startListening();
-        this.showNotification('Microphone activated. Say something to test!');
+        this.showNotification('Microphone activated. Speak something to test!');
       });
     }
 
@@ -194,8 +276,8 @@ class VoxCADApp {
 
     this.dom.btnToggleGrid.addEventListener('click', () => {
       const active = this.cadEngine.toggleGrid();
-      this.dom.btnToggleGrid.classList.toggle('active', active);
-      this.updateMessage(active ? 'Grid floor visible' : 'Grid floor hidden');
+      this.dom.btnToggleGrid.classList.toggle('active', grid);
+      this.updateMessage(grid ? 'Grid floor visible' : 'Grid floor hidden');
     });
 
     this.dom.btnResetCamera.addEventListener('click', () => {
@@ -265,23 +347,14 @@ class VoxCADApp {
     }
   }
 
-  /**
-   * Main Conversational Command Processor:
-   * 1. Synthesizes geometry
-   * 2. Explains what has been created
-   * 3. Inquires: "Would you like to make any changes?"
-   * 4. Listens for 8 seconds, automatically timing out if user stays silent
-   */
   async executeCommand(rawText) {
     if (!rawText) return;
-
     const lower = rawText.toLowerCase().trim();
 
-    // Check if user is saying "No / looks good / that's all" during follow-up
     if (this.isAwaitingFollowup && (lower.includes('no') || lower.includes('good') || lower.includes('fine') || lower.includes('perfect') || lower.includes('done') || lower.includes('stop'))) {
       this.isAwaitingFollowup = false;
       this.voiceEngine.stopListening();
-      const exitMsg = "Understood. Your design is ready. Standing by.";
+      const exitMsg = "Understood. Design ready. Standing by.";
       this.updateMessage(exitMsg);
       this.voiceEngine.speak(exitMsg);
       return;
@@ -298,6 +371,18 @@ class VoxCADApp {
         this.voiceEngine.speak(intent.question);
         break;
 
+      case 'CREATE_MERCEDES_CAR':
+      case 'CREATE_CAR':
+      case 'CREATE_TIRE':
+      case 'CREATE_WHEEL':
+      case 'CREATE_CIRCLE':
+      case 'CREATE_DISC':
+      case 'CREATE_MUG':
+      case 'CREATE_CUP':
+      case 'CREATE_CHAIR':
+      case 'CREATE_TABLE':
+      case 'CREATE_SMARTPHONE':
+      case 'CREATE_BOLT':
       case 'CREATE_HYPERCAR':
       case 'CREATE_SATELLITE':
       case 'CREATE_STEALTH_DRONE':
@@ -312,7 +397,7 @@ class VoxCADApp {
       case 'CREATE_SPHERE':
       case 'CUT_HOLE':
       case 'EXTRUDE_FACE':
-        await this.featureTree.addOperation({
+        this.featureTree.addOperation({
           ...intent,
           description: intent.message
         });
@@ -320,18 +405,16 @@ class VoxCADApp {
         this.showStandbyState(false);
         this.cadEngine.clearSelection();
 
-        // Conversational Explanation & Inquiry
-        const inquirySpeech = `${intent.message} Would you like to make any changes, adjust dimensions, or change the material?`;
-        this.updateMessage(inquirySpeech);
+        // Natural, concise voice response (dimensions are on the side panel!)
+        const shortName = intent.type.replace('CREATE_', '').replace(/_/g, ' ').toLowerCase();
+        const voiceText = `Created ${shortName}. Metrics and manual sliders are ready on the side panel. Would you like any adjustments?`;
+        this.updateMessage(intent.message);
 
         this.isAwaitingFollowup = true;
-        this.voiceEngine.speak(inquirySpeech, () => {
-          // As soon as AI speech finishes, listen for 8 seconds
+        this.voiceEngine.speak(voiceText, () => {
           this.voiceEngine.startFollowupListening(() => {
-            // Inactivity timeout reached
             this.isAwaitingFollowup = false;
-            this.updateMessage('Standing by. Press Spacebar or tap the mic whenever you are ready.');
-            this.voiceEngine.speak('Standing by.');
+            this.updateMessage('Standing by.');
           });
         });
         break;
@@ -341,16 +424,9 @@ class VoxCADApp {
         document.querySelectorAll('.mat-card').forEach(c => {
           c.classList.toggle('active', c.getAttribute('data-mat') === intent.material);
         });
-        const matMsg = `Appearance updated to ${intent.material}. Would you like any other changes?`;
+        const matMsg = `Appearance updated to ${intent.material}.`;
         this.updateMessage(matMsg);
-
-        this.isAwaitingFollowup = true;
-        this.voiceEngine.speak(matMsg, () => {
-          this.voiceEngine.startFollowupListening(() => {
-            this.isAwaitingFollowup = false;
-            this.updateMessage('Standing by.');
-          });
-        });
+        this.voiceEngine.speak(matMsg);
         break;
 
       case 'CAMERA_VIEW':
@@ -397,7 +473,7 @@ class VoxCADApp {
       case 'CLEAR_ALL':
         this.featureTree.clear();
         this.showStandbyState(true);
-        this.updateMessage('Canvas cleared. Ready for your next design.');
+        this.updateMessage('Canvas reset to blank.');
         this.voiceEngine.speak('Canvas cleared');
         break;
 
@@ -433,7 +509,7 @@ class VoxCADApp {
       node.className = 'feature-node';
       node.innerHTML = `
         <div class="feature-node-info">
-          <span class="feature-node-title">#${index + 1} ${feat.type.replace('CREATE_', '').replace('_', ' ')}</span>
+          <span class="feature-node-title">#${index + 1} ${feat.type.replace('CREATE_', '').replace(/_/g, ' ')}</span>
           <span class="feature-node-desc">${feat.description || 'Feature'}</span>
         </div>
         <button class="feature-delete-btn" title="Delete" data-id="${feat.id}">×</button>

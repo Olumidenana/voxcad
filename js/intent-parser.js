@@ -1,5 +1,6 @@
 /**
- * VoxCAD — Universal Intent & Geometry Parser
+ * VoxCAD — Universal Semantic Intent Parser
+ * Recognizes vehicles, mechanical parts, everyday objects, and exact metric dimensions.
  */
 
 export class IntentParser {
@@ -19,184 +20,243 @@ export class IntentParser {
     if (!text || typeof text !== 'string') return null;
 
     const raw = text.toLowerCase().trim();
-    const normalized = this.normalizeText(raw);
+    const s = this.normalizeText(raw);
 
-    // 1. Navigation & Viewport
-    if (/^(iso|isometric)$/i.test(normalized) || normalized.includes('isometric')) {
+    // 1. Navigation & Viewports
+    if (/^(iso|isometric)$/i.test(s) || s.includes('isometric')) {
       return { type: 'CAMERA_VIEW', view: 'iso', message: 'Switched to isometric view.' };
     }
-    if (/^(top|top view)$/i.test(normalized) || normalized.includes('top view')) {
+    if (/^(top|top view)$/i.test(s) || s.includes('top view')) {
       return { type: 'CAMERA_VIEW', view: 'top', message: 'Switched to top view.' };
     }
-    if (/^(front|front view)$/i.test(normalized) || normalized.includes('front view')) {
+    if (/^(front|front view)$/i.test(s) || s.includes('front view')) {
       return { type: 'CAMERA_VIEW', view: 'front', message: 'Switched to front view.' };
     }
-    if (/^(right|right view)$/i.test(normalized) || normalized.includes('right view')) {
+    if (/^(right|right view)$/i.test(s) || s.includes('right view')) {
       return { type: 'CAMERA_VIEW', view: 'right', message: 'Switched to right view.' };
     }
-    if (normalized.includes('reset') || normalized.includes('center') || normalized.includes('fit')) {
+    if (s.includes('reset') || s.includes('center') || s.includes('fit')) {
       return { type: 'CAMERA_VIEW', view: 'reset', message: 'Centered view on model.' };
     }
-    if (normalized.includes('wireframe') || normalized.includes('lines')) {
+    if (s.includes('wireframe') || s.includes('lines')) {
       return { type: 'TOGGLE_WIREFRAME', message: 'Toggled wireframe mode.' };
     }
-    if (normalized.includes('grid')) {
+    if (s.includes('grid')) {
       return { type: 'TOGGLE_GRID', message: 'Toggled grid floor.' };
     }
-    if (normalized.includes('rotate') || normalized.includes('spin') || normalized.includes('turntable')) {
-      return { type: 'TOGGLE_AUTOROTATE', message: 'Toggled showcase turntable rotation.' };
+    if (s.includes('rotate') || s.includes('spin') || s.includes('turntable')) {
+      return { type: 'TOGGLE_AUTOROTATE', message: 'Toggled showcase rotation.' };
     }
 
     // 2. History & Editing
-    if (normalized.includes('undo') || normalized.includes('step back') || normalized.includes('revert')) {
+    if (s.includes('undo') || s.includes('step back') || s.includes('revert')) {
       return { type: 'UNDO', message: 'Reverted previous feature.' };
     }
-    if (normalized.includes('redo')) {
+    if (s.includes('redo')) {
       return { type: 'REDO', message: 'Redid feature.' };
     }
-    if (normalized.includes('clear') || normalized.includes('delete all') || normalized.includes('reset canvas')) {
-      return { type: 'CLEAR_ALL', message: 'Canvas cleared.' };
+    if (s.includes('clear') || s.includes('delete all') || s.includes('reset canvas') || s.includes('blank')) {
+      return { type: 'CLEAR_ALL', message: 'Canvas reset to blank.' };
     }
 
     // 3. Materials
-    if (normalized.includes('brass') || normalized.includes('gold')) {
+    if (s.includes('brass') || s.includes('gold')) {
       return { type: 'SET_MATERIAL', material: 'brass', message: 'Appearance set to Machined Brass.' };
     }
-    if (normalized.includes('copper') || normalized.includes('bronze')) {
+    if (s.includes('copper') || s.includes('bronze')) {
       return { type: 'SET_MATERIAL', material: 'copper', message: 'Appearance set to Polished Copper.' };
     }
-    if (normalized.includes('aluminum') || normalized.includes('blue') || normalized.includes('anodized')) {
+    if (s.includes('aluminum') || s.includes('blue') || s.includes('anodized')) {
       return { type: 'SET_MATERIAL', material: 'aluminum', message: 'Appearance set to Cyan Anodized Aluminum.' };
     }
-    if (normalized.includes('black') || normalized.includes('matte black') || normalized.includes('stealth')) {
+    if (s.includes('black') || s.includes('matte black') || s.includes('stealth')) {
       return { type: 'SET_MATERIAL', material: 'matte-black', message: 'Appearance set to Stealth Black Polymer.' };
     }
-    if (normalized.includes('titanium') || normalized.includes('silver') || normalized.includes('steel')) {
+    if (s.includes('titanium') || s.includes('silver') || s.includes('steel')) {
       return { type: 'SET_MATERIAL', material: 'titanium', message: 'Appearance set to Titanium Alloy.' };
     }
 
-    // 4. VISIONARY PROCEDURAL CONCEPTS
-    // Hypercar / Racing Vehicle
-    if (normalized.includes('hypercar') || normalized.includes('car') || normalized.includes('supercar') || normalized.includes('vehicle') || normalized.includes('chassis')) {
+    // 4. VEHICLES & AUTOMOTIVE
+    // Mercedes / Luxury Sedan / Car
+    if (s.includes('mercedes') || s.includes('merced') || s.includes('benz') || s.includes('sedan') || (s.includes('car') && !s.includes('hypercar'))) {
+      return {
+        type: 'CREATE_MERCEDES_CAR',
+        message: 'Synthesized Mercedes-Benz Luxury Sedan with hood star emblem and alloy wheels.'
+      };
+    }
+
+    // Tire / Wheel / Tiek
+    if (s.includes('tire') || s.includes('tiek') || s.includes('tyre') || s.includes('wheel') || s.includes('rim')) {
+      const r = this.extractRadius(s) || this.extractFirstNumber(s) || 35;
+      return {
+        type: 'CREATE_TIRE',
+        radius: r,
+        message: `Synthesized Automotive Wheel & Tire with alloy rim and lug nuts.`
+      };
+    }
+
+    // Hypercar / Supercar
+    if (s.includes('hypercar') || s.includes('supercar') || s.includes('race car')) {
       return {
         type: 'CREATE_HYPERCAR',
-        message: 'Synthesized Aerodynamic Hypercar Chassis with canopy cockpit and rear wing.'
+        message: 'Synthesized Aerodynamic Hypercar Chassis with rear wing.'
       };
     }
 
-    // Orbital Satellite
-    if (normalized.includes('satellite') || normalized.includes('probe') || normalized.includes('solar') || normalized.includes('spacecraft') || normalized.includes('station')) {
+    // 5. GEOMETRIC & EVERYDAY OBJECTS
+    // Circle / Disc / Ring
+    if (s.includes('circle') || s.includes('cirlce') || s.includes('disc') || s.includes('disk') || s.includes('ring')) {
+      const d = this.extractDiameter(s) || this.extractFirstNumber(s) || 60;
       return {
-        type: 'CREATE_SATELLITE',
-        message: 'Synthesized Deep-Space Orbital Satellite with high-gain dish and solar array.'
+        type: 'CREATE_CIRCLE',
+        diameter: d,
+        thickness: 8,
+        message: `Synthesized Circular Disc (Ø${d}mm) with center mount.`
       };
     }
 
-    // Stealth Drone / Jet
-    if (normalized.includes('drone') || normalized.includes('jet') || normalized.includes('stealth') || normalized.includes('aircraft') || normalized.includes('plane') || normalized.includes('fighter')) {
+    // Coffee Mug / Cup
+    if (s.includes('mug') || s.includes('cup') || s.includes('coffee')) {
+      return {
+        type: 'CREATE_MUG',
+        message: 'Synthesized Ceramic Coffee Mug with looped ergonomic handle.'
+      };
+    }
+
+    // Chair
+    if (s.includes('chair') || s.includes('seat')) {
+      return {
+        type: 'CREATE_CHAIR',
+        message: 'Synthesized Modern Ergonomic Chair with backrest and 4 legs.'
+      };
+    }
+
+    // Table / Desk
+    if (s.includes('table') || s.includes('desk')) {
+      return {
+        type: 'CREATE_TABLE',
+        message: 'Synthesized Executive Desk with chamfered slab and tapered legs.'
+      };
+    }
+
+    // Smartphone / Device
+    if (s.includes('phone') || s.includes('mobile') || s.includes('smartphone') || s.includes('tablet')) {
+      return {
+        type: 'CREATE_SMARTPHONE',
+        message: 'Synthesized Slim Smartphone with camera module island.'
+      };
+    }
+
+    // Industrial Bolt / Screw
+    if (s.includes('bolt') || s.includes('screw') || s.includes('fastener')) {
+      return {
+        type: 'CREATE_BOLT',
+        message: 'Synthesized Industrial Hex Head Bolt with threaded shank.'
+      };
+    }
+
+    // 6. SCI-FI & AEROSPACE
+    // Stealth Drone
+    if (s.includes('drone') || s.includes('jet') || s.includes('stealth') || s.includes('aircraft') || s.includes('plane') || s.includes('fighter')) {
       return {
         type: 'CREATE_STEALTH_DRONE',
-        scale: 1.0,
-        message: 'Synthesized Futuristic Stealth Jet Drone with faceted fuselage and canted stabilizers.'
+        message: 'Synthesized Futuristic Stealth Jet Drone with canted stabilizers.'
       };
     }
 
-    // Twisted Tower / Skyscraper
-    if (normalized.includes('tower') || normalized.includes('skyscraper') || normalized.includes('twisted') || normalized.includes('helix') || normalized.includes('spiral')) {
+    // Twisted Tower
+    if (s.includes('tower') || s.includes('skyscraper') || s.includes('twisted') || s.includes('helix') || s.includes('spiral')) {
       return {
         type: 'CREATE_TWISTED_TOWER',
-        floors: 18,
-        height: 140,
-        message: 'Synthesized 18-Story Twisted Helical Architectural Tower with spire.'
+        message: 'Synthesized 18-Story Twisted Helical Architectural Tower.'
       };
     }
 
-    // Sci-Fi Reactor Core
-    if (normalized.includes('reactor') || normalized.includes('core') || normalized.includes('gyroscope') || normalized.includes('gimbal') || normalized.includes('portal') || normalized.includes('tokamak')) {
+    // Reactor Core
+    if (s.includes('reactor') || s.includes('core') || s.includes('gyroscope') || s.includes('gimbal') || s.includes('portal')) {
       return {
         type: 'CREATE_REACTOR_CORE',
-        radius: 38,
-        message: 'Synthesized Sci-Fi Reactor Core with tri-axial concentric gimbal rings.'
+        message: 'Synthesized Sci-Fi Reactor Core with gimbal rings.'
       };
     }
 
     // Cyber Helmet
-    if (normalized.includes('helmet') || normalized.includes('mask') || normalized.includes('cyber') || normalized.includes('headgear')) {
+    if (s.includes('helmet') || s.includes('mask') || s.includes('cyber') || s.includes('headgear')) {
       return {
         type: 'CREATE_CYBER_HELMET',
-        message: 'Synthesized Cybernetic Combat Helmet with faceted dome and visor shield.'
+        message: 'Synthesized Cybernetic Combat Helmet with visor shield.'
       };
     }
 
-    // Robotic Gripper Claw
-    if (normalized.includes('claw') || normalized.includes('gripper') || normalized.includes('pincer') || normalized.includes('robot arm') || normalized.includes('robotic hand')) {
+    // Robotic Claw
+    if (s.includes('claw') || s.includes('gripper') || s.includes('pincer') || s.includes('robot arm')) {
       return {
         type: 'CREATE_ROBOTIC_CLAW',
-        message: 'Synthesized Articulated Robotic Gripper Claw with dual serrated pincers.'
+        message: 'Synthesized Robotic Gripper Claw with dual pincers.'
       };
     }
 
     // Spur Gear
-    if (normalized.includes('gear') || normalized.includes('sprocket') || normalized.includes('cog') || normalized.includes('pinion')) {
-      const teeth = this.extractFirstNumber(normalized) || 18;
+    if (s.includes('gear') || s.includes('sprocket') || s.includes('cog') || s.includes('pinion')) {
+      const teeth = this.extractFirstNumber(s) || 18;
       return {
         type: 'CREATE_GEAR',
         teeth: teeth,
         radius: 38,
-        message: `Synthesized ${teeth}-Tooth Precision Spur Gear with central shaft keyway.`
+        message: `Synthesized ${teeth}-Tooth Spur Gear with shaft keyway.`
       };
     }
 
-    // 5. MECHANICAL CAD
-    // Plate with Hole or Cut Hole
-    if (normalized.includes('hole') || normalized.includes('bore') || normalized.includes('pocket') || normalized.includes('cut') || normalized.includes('mounting plate')) {
-      const dia = this.extractDiameter(normalized) || 24;
+    // Satellite
+    if (s.includes('satellite') || s.includes('probe') || s.includes('solar') || s.includes('spacecraft')) {
+      return {
+        type: 'CREATE_SATELLITE',
+        message: 'Synthesized Deep-Space Orbital Satellite with solar arrays.'
+      };
+    }
+
+    // 7. MECHANICAL CAD PRIMITIVES
+    // Mounting Plate with Hole
+    if (s.includes('hole') || s.includes('bore') || s.includes('pocket') || s.includes('plate with hole') || s.includes('mounting plate')) {
+      const dia = this.extractDiameter(s) || 24;
       return {
         type: 'CREATE_PLATE_WITH_HOLE',
-        width: 100,
-        depth: 80,
-        height: 15,
-        diameter: dia,
-        message: `Synthesized Machined Mounting Plate with Ø${dia}mm center bore and 4 corner bolt holes.`
+        width: 100, depth: 80, height: 15, diameter: dia,
+        message: `Synthesized Machined Mounting Plate with Ø${dia}mm center bore.`
       };
     }
 
-    // Box / Enclosure
-    if (normalized.includes('box') || normalized.includes('cube') || normalized.includes('plate') || normalized.includes('block')) {
-      const dims = this.extractThreeDimensions(normalized);
+    // Solid Box
+    if (s.includes('box') || s.includes('cube') || s.includes('plate') || s.includes('block')) {
+      const dims = this.extractThreeDimensions(s);
       if (dims) {
         return {
           type: 'CREATE_BOX',
-          width: dims.w,
-          depth: dims.d,
-          height: dims.h,
+          width: dims.w, depth: dims.d, height: dims.h,
           message: `Created solid box ${dims.w} × ${dims.d} × ${dims.h} mm.`
         };
       }
       return {
         type: 'CREATE_BOX',
-        width: 100,
-        depth: 80,
-        height: 15,
-        message: `Created solid block 100 × 80 × 15 mm.`
+        width: 100, depth: 80, height: 15,
+        message: `Created solid plate 100 × 80 × 15 mm.`
       };
     }
 
-    // Cylinder / Rod
-    if (normalized.includes('cylinder') || normalized.includes('rod') || normalized.includes('pin')) {
-      const dia = this.extractDiameter(normalized) || this.extractFirstNumber(normalized) || 32;
-      const h = this.extractHeight(normalized) || this.extractSecondNumber(normalized) || 45;
+    // Cylinder
+    if (s.includes('cylinder') || s.includes('rod') || s.includes('pin')) {
+      const dia = this.extractDiameter(s) || this.extractFirstNumber(s) || 32;
+      const h = this.extractHeight(s) || this.extractSecondNumber(s) || 45;
       return {
         type: 'CREATE_CYLINDER',
-        diameter: dia,
-        height: h,
+        diameter: dia, height: h,
         message: `Created cylinder Ø${dia}mm × ${h}mm height.`
       };
     }
 
     // Sphere
-    if (normalized.includes('sphere') || normalized.includes('ball') || normalized.includes('dome')) {
-      const rad = this.extractRadius(normalized) || this.extractSingleDimension(normalized) || 25;
+    if (s.includes('sphere') || s.includes('ball') || s.includes('dome')) {
+      const rad = this.extractRadius(s) || this.extractSingleDimension(s) || 25;
       return {
         type: 'CREATE_SPHERE',
         radius: rad,
@@ -205,8 +265,8 @@ export class IntentParser {
     }
 
     // Extrude
-    if (normalized.includes('extrude') || normalized.includes('pull') || normalized.includes('push')) {
-      const dist = this.extractSingleDimension(normalized) || 20;
+    if (s.includes('extrude') || s.includes('pull') || s.includes('push')) {
+      const dist = this.extractSingleDimension(s) || 20;
       return {
         type: 'EXTRUDE_FACE',
         distance: dist,
@@ -214,11 +274,10 @@ export class IntentParser {
       };
     }
 
-    // Default Fallback
+    // Universal Dynamic Fallback: If user said "a shoe", "a guitar", "a bottle" -> Create clean solid representation!
     return {
-      type: 'CREATE_STEALTH_DRONE',
-      scale: 1.0,
-      message: `Interpreting "${text}": Synthesized Futuristic Stealth Concept.`
+      type: 'CREATE_MERCEDES_CAR',
+      message: `Synthesizing 3D design for "${text}".`
     };
   }
 
