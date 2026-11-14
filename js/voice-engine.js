@@ -1,6 +1,6 @@
 /**
- * VoxCAD — Voice & Speech Recognition Engine
- * Bulletproof Speech Capture, Acoustic Tones & CAD Lexicon Filter
+ * VoxCAD — Advanced Conversational Voice Engine
+ * Handles Speech Recognition, Device Permissions, Acoustic Cues & Conversational Loop
  */
 
 export class VoiceEngine {
@@ -10,18 +10,21 @@ export class VoiceEngine {
     this.isSupported = false;
     this.ttsEnabled = true;
 
-    // Web Audio Context for Acoustic Feedback & Waveform
+    // Conversational Timeout Timer (stops listening after inactivity)
+    this.silenceTimer = null;
+    this.silenceTimeoutMs = 8000; // 8 seconds wait for followup
+
+    // Web Audio Context for Chimes
     this.audioCtx = null;
-    this.analyser = null;
-    this.mediaStream = null;
 
     // Callbacks
     this.onTranscriptUpdate = null;
     this.onCommandFinalized = null;
     this.onStatusChange = null;
     this.onError = null;
+    this.onInactivityTimeout = null;
 
-    // CAD Specialized Lexicon Phonetic Map
+    // CAD Lexicon Phonetic Map
     this.phoneticMap = [
       { pattern: /\b(counter\s*four|counter\s*for)\b/gi, replacement: "counterbore" },
       { pattern: /\b(filet|phillet)\b/gi, replacement: "fillet" },
@@ -34,7 +37,9 @@ export class VoiceEngine {
       { pattern: /\b(stealt|stelt)\b/gi, replacement: "stealth" },
       { pattern: /\b(dron|droan)\b/gi, replacement: "drone" },
       { pattern: /\b(towr|towar)\b/gi, replacement: "tower" },
-      { pattern: /\b(reactor|core)\b/gi, replacement: "reactor core" }
+      { pattern: /\b(reactor|core)\b/gi, replacement: "reactor core" },
+      { pattern: /\b(hypercar|supercar)\b/gi, replacement: "hypercar" },
+      { pattern: /\b(satellite|probe)\b/gi, replacement: "satellite" }
     ];
 
     this.initSpeechRecognition();
@@ -42,73 +47,75 @@ export class VoiceEngine {
 
   initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
     if (SpeechRecognition) {
       this.isSupported = true;
       this.recognition = new SpeechRecognition();
-      this.recognition.continuous = true;
+      this.recognition.continuous = false; // Capture discrete sentences cleanly
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
 
       this.recognition.onstart = () => {
         this.isListening = true;
-        this.playAcousticCue(587.33, 0.1); // High D5 chime
+        this.clearSilenceTimer();
+        this.playAcousticCue(659.25, 0.08); // E5 Chime
         if (this.onStatusChange) this.onStatusChange('listening');
       };
 
       this.recognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
+        this.clearSilenceTimer(); // Reset inactivity while user is speaking
+
+        let interim = '';
+        let final = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const item = event.results[i];
           if (item.isFinal) {
-            finalTranscript += item[0].transcript;
+            final += item[0].transcript;
           } else {
-            interimTranscript += item[0].transcript;
+            interim += item[0].transcript;
           }
         }
 
-        const raw = (finalTranscript || interimTranscript).trim();
+        const raw = (final || interim).trim();
         const conditioned = this.applyCADLexicon(raw);
 
         if (this.onTranscriptUpdate) {
-          this.onTranscriptUpdate(conditioned, !!finalTranscript);
+          this.onTranscriptUpdate(conditioned, !!final);
         }
 
-        if (finalTranscript && this.onCommandFinalized) {
+        if (final && this.onCommandFinalized) {
           this.onCommandFinalized(conditioned);
         }
       };
 
       this.recognition.onerror = (event) => {
-        console.warn('Speech Recognition error event:', event.error);
+        console.warn('Speech error:', event.error);
+        this.clearSilenceTimer();
+
         if (event.error === 'not-allowed') {
-          const msg = 'Microphone access is blocked. Please click the lock or camera icon in your address bar and allow microphone permissions.';
+          const msg = 'Microphone permission was denied. Please click the lock or camera icon in your browser address bar to allow microphone access.';
           if (this.onError) this.onError(msg);
-          this.speak(msg);
+          this.speak('Microphone access is blocked. Please allow microphone permissions in your browser.');
+        } else if (event.error === 'network') {
+          const msg = 'Speech recognition network error. Please check your internet connection or use typing below.';
+          if (this.onError) this.onError(msg);
         } else if (event.error === 'no-speech') {
-          // Normal silence, don't crash
+          // Handled smoothly by silence handler
         } else {
           if (this.onError) this.onError(`Voice status: ${event.error}`);
         }
-        this.stopListening();
+
+        this.isListening = false;
+        if (this.onStatusChange) this.onStatusChange('idle');
       };
 
       this.recognition.onend = () => {
-        if (this.isListening) {
-          // Restart if user intended to keep listening
-          try {
-            this.recognition.start();
-          } catch (e) {
-            this.isListening = false;
-            if (this.onStatusChange) this.onStatusChange('idle');
-          }
-        } else {
-          if (this.onStatusChange) this.onStatusChange('idle');
-        }
+        this.isListening = false;
+        if (this.onStatusChange) this.onStatusChange('idle');
       };
     } else {
-      console.warn('Web Speech API not natively available in this browser.');
+      console.warn('SpeechRecognition API not available in this browser.');
     }
   }
 
@@ -121,47 +128,36 @@ export class VoiceEngine {
     return result;
   }
 
-  async startListening() {
+  startListening() {
     if (!this.isSupported) {
       if (this.onError) {
-        this.onError('Speech Recognition is not supported by your browser. Use Chrome, Edge, or Brave, or type below.');
+        this.onError('Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge, or type in the bar below.');
       }
       return;
     }
 
     if (this.isListening) return;
 
-    // Explicitly request mic permission first so user gets browser dialog if needed
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
-    } catch (err) {
-      const msg = 'Please allow microphone access in your browser to use voice commands.';
-      if (this.onError) this.onError(msg);
-      return;
-    }
-
-    try {
-      this.isListening = true;
       this.recognition.start();
     } catch (e) {
-      console.error('Failed to start recognition:', e);
+      console.warn('Recognition start exception:', e);
+      try {
+        this.recognition.stop();
+        setTimeout(() => this.recognition.start(), 150);
+      } catch (err) {}
     }
   }
 
   stopListening() {
+    this.clearSilenceTimer();
     if (!this.isListening) return;
+
     this.isListening = false;
-    this.playAcousticCue(392.00, 0.1); // Low G4 chime
+    this.playAcousticCue(392.00, 0.08); // G4 low chime
     try {
       this.recognition.stop();
     } catch (e) {}
-
-    if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach(t => t.stop());
-      this.mediaStream = null;
-    }
 
     if (this.onStatusChange) this.onStatusChange('idle');
   }
@@ -174,11 +170,34 @@ export class VoiceEngine {
     }
   }
 
+  /**
+   * Starts conversational followup timer: listens for user response,
+   * but automatically shuts off if no response is detected within 8 seconds.
+   */
+  startFollowupListening(onTimeoutCallback) {
+    this.clearSilenceTimer();
+    this.startListening();
+
+    this.silenceTimer = setTimeout(() => {
+      if (this.isListening) {
+        this.stopListening();
+        if (onTimeoutCallback) onTimeoutCallback();
+      }
+    }, this.silenceTimeoutMs);
+  }
+
+  clearSilenceTimer() {
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
+    }
+  }
+
   playAcousticCue(freq, duration) {
     try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      if (!this.audioCtx) this.audioCtx = new AudioContext();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!this.audioCtx) this.audioCtx = new AudioCtx();
       if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
 
       const osc = this.audioCtx.createOscillator();
@@ -194,8 +213,15 @@ export class VoiceEngine {
     } catch (e) {}
   }
 
-  speak(text) {
-    if (!this.ttsEnabled || !window.speechSynthesis) return;
+  /**
+   * Speaks out responses and fires a callback when speech finishes
+   */
+  speak(text, onFinished = null) {
+    if (!this.ttsEnabled || !window.speechSynthesis) {
+      if (onFinished) onFinished();
+      return;
+    }
+
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.05;
@@ -204,6 +230,14 @@ export class VoiceEngine {
     const voices = window.speechSynthesis.getVoices();
     const voice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
     if (voice) utterance.voice = voice;
+
+    utterance.onend = () => {
+      if (onFinished) onFinished();
+    };
+
+    utterance.onerror = () => {
+      if (onFinished) onFinished();
+    };
 
     window.speechSynthesis.speak(utterance);
   }

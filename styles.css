@@ -4,17 +4,17 @@
 
 :root {
   --bg-deep: #05070c;
-  --glass-bg: rgba(13, 18, 30, 0.78);
-  --glass-border: rgba(56, 189, 248, 0.18);
-  --glass-hover: rgba(56, 189, 248, 0.28);
-  --glass-active: rgba(2, 132, 199, 0.4);
+  --glass-bg: rgba(13, 18, 30, 0.82);
+  --glass-border: rgba(56, 189, 248, 0.2);
+  --glass-hover: rgba(56, 189, 248, 0.32);
+  --glass-active: rgba(2, 132, 199, 0.45);
 
   --text-main: #f8fafc;
   --text-sub: #94a3b8;
   --text-dim: #64748b;
 
   --accent-cyan: #38bdf8;
-  --accent-glow: rgba(56, 189, 248, 0.4);
+  --accent-glow: rgba(56, 189, 248, 0.45);
   --accent-blue: #0284c7;
   --accent-rose: #f43f5e;
   --accent-green: #10b981;
@@ -67,6 +67,77 @@ html, body {
 }
 
 /* ==========================================================================
+   Blank Canvas Standby Overlay
+   ========================================================================== */
+.standby-overlay {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  z-index: 10;
+  pointer-events: none;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.standby-overlay.hidden {
+  display: none;
+}
+
+.standby-hologram {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hologram-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px dashed rgba(56, 189, 248, 0.4);
+  animation: rotateRing 12s linear infinite;
+}
+
+@keyframes rotateRing {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.hologram-core {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(56, 189, 248, 0.4));
+  border: 1px solid var(--accent-cyan);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.standby-text h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.standby-text p {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+/* ==========================================================================
    Top Floating Header Bar
    ========================================================================== */
 .floating-header {
@@ -80,7 +151,7 @@ html, body {
   justify-content: space-between;
   gap: 12px;
   z-index: 50;
-  pointer-events: none; /* children enable pointer events */
+  pointer-events: none;
 }
 
 .floating-header > * {
@@ -99,7 +170,7 @@ html, body {
   align-items: center;
   gap: 8px;
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: 8px 14px;
@@ -136,7 +207,7 @@ html, body {
 /* Glass Buttons & Pills */
 .hud-btn {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   color: var(--text-main);
   font-family: var(--font-display);
@@ -164,7 +235,7 @@ html, body {
 .glass-pill-group {
   display: flex;
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: 3px;
@@ -202,7 +273,6 @@ html, body {
   padding: 6px 8px;
 }
 
-/* Export CTA */
 .btn-export {
   background: linear-gradient(135deg, #0284c7, #0ea5e9);
   color: #fff;
@@ -216,7 +286,7 @@ html, body {
 }
 
 /* ==========================================================================
-   Left Slide-out Drawer: Feature History & Materials
+   Left Slide-out Drawer: History & Materials
    ========================================================================== */
 .slide-drawer {
   position: absolute;
@@ -224,8 +294,8 @@ html, body {
   left: 14px;
   bottom: 120px;
   width: 320px;
-  background: rgba(10, 14, 24, 0.94);
-  backdrop-filter: blur(16px);
+  background: rgba(10, 14, 24, 0.95);
+  backdrop-filter: blur(18px);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
   z-index: 60;
@@ -417,7 +487,7 @@ html, body {
 
 .hud-pill {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   padding: 5px 10px;
@@ -445,7 +515,7 @@ html, body {
   top: 130px;
   right: 14px;
   background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--accent-cyan);
   box-shadow: 0 4px 20px rgba(56, 189, 248, 0.3);
   border-radius: 10px;
@@ -491,7 +561,7 @@ html, body {
   cursor: pointer;
 }
 
-/* Diagnostic Notification Banner */
+/* Notification Banner */
 .notification-banner {
   position: absolute;
   top: 76px;
@@ -525,7 +595,7 @@ html, body {
 }
 
 /* ==========================================================================
-   Central Floating Command Deck (Voice & Design Cockpit)
+   Central Floating Command Deck
    ========================================================================== */
 .command-deck {
   position: absolute;
@@ -545,16 +615,15 @@ html, body {
   pointer-events: auto;
 }
 
-/* Assistant Live Ticker */
 .assistant-ticker {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 7px 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -564,24 +633,24 @@ html, body {
   font-weight: 700;
   color: var(--accent-cyan);
   background: rgba(56, 189, 248, 0.15);
-  padding: 2px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .ticker-message {
   font-size: 12px;
-  color: var(--text-sub);
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Main Command Bar */
 .command-bar-wrapper {
-  background: rgba(13, 18, 30, 0.92);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.15);
+  background: rgba(13, 18, 30, 0.94);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.15);
   border-radius: 16px;
   padding: 6px 8px;
   display: flex;
@@ -595,11 +664,10 @@ html, body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 25px var(--accent-glow);
 }
 
-/* Glowing Mic Toggle */
 .mic-toggle-btn {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   background: linear-gradient(135deg, #0284c7, #0ea5e9);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -723,7 +791,7 @@ html, body {
 
 .pill-chip {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   color: var(--text-sub);
@@ -761,10 +829,14 @@ html, body {
   pointer-events: none;
 }
 
+.floating-footer > * {
+  pointer-events: auto;
+}
+
 .footer-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .live-pulse {
@@ -775,8 +847,26 @@ html, body {
   box-shadow: 0 0 6px var(--accent-green);
 }
 
+.mic-test-btn {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mic-test-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #fff;
+}
+
 /* ==========================================================================
-   Responsive Adaptations (Mobile / Small Windows)
+   Responsive Adaptations
    ========================================================================== */
 @media (max-width: 768px) {
   .floating-header {

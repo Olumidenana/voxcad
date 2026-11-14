@@ -28,6 +28,24 @@
       <canvas id="threeCanvas"></canvas>
     </div>
 
+    <!-- Blank Canvas Standby State Overlay -->
+    <div class="standby-overlay" id="standbyOverlay">
+      <div class="standby-hologram">
+        <div class="hologram-ring"></div>
+        <div class="hologram-core">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+      </div>
+      <div class="standby-text">
+        <h2>VoxCAD Canvas Ready</h2>
+        <p>Awaiting your design vision. Tap the microphone or type below.</p>
+      </div>
+    </div>
+
     <!-- Top Floating Header Bar -->
     <header class="floating-header">
       <div class="header-left">
@@ -43,7 +61,7 @@
         <div class="brand">
           <div class="brand-gem"></div>
           <span class="brand-title">VoxCAD</span>
-          <span class="brand-tag">GEN-3D</span>
+          <span class="brand-tag">AI STUDIO</span>
         </div>
       </div>
 
@@ -71,7 +89,7 @@
         </div>
       </div>
 
-      <!-- Export & Status -->
+      <!-- Export & Actions -->
       <div class="header-right">
         <button id="btnQuickExportSTL" class="btn btn-export" title="Download 3D STL file for 3D Printing">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -129,13 +147,13 @@
         <div class="drawer-footer-actions">
           <button id="btnClearAll" class="btn btn-danger-outline">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            <span>Reset Canvas</span>
+            <span>Reset to Blank Canvas</span>
           </button>
         </div>
       </div>
     </aside>
 
-    <!-- Viewport On-Screen HUD Badges -->
+    <!-- Viewport HUD Badges -->
     <div class="floating-hud top-left-hud">
       <div class="hud-pill">
         <span class="hud-sub">FACES</span>
@@ -147,7 +165,7 @@
       </div>
     </div>
 
-    <!-- Active Selection Overlay Notification -->
+    <!-- Active Selection Chip -->
     <div class="selection-chip hidden" id="selectionChip">
       <div class="chip-dot"></div>
       <div class="chip-text">
@@ -157,22 +175,22 @@
       <button class="chip-close" id="btnDismissSelection">×</button>
     </div>
 
-    <!-- Notification / Diagnostic Banner -->
+    <!-- Notification Banner -->
     <div class="notification-banner hidden" id="notificationBanner">
-      <span class="banner-icon">ℹ️</span>
+      <span class="banner-icon">🎙️</span>
       <span class="banner-text" id="notificationText">Notification</span>
       <button class="banner-close" id="btnCloseNotification">×</button>
     </div>
 
-    <!-- Central Floating Command Deck (The Voice & Design Cockpit) -->
+    <!-- Central Command Deck -->
     <section class="command-deck">
-      <!-- AI Assistant Live Feedback Message -->
+      <!-- AI Conversational Ticker -->
       <div class="assistant-ticker" id="assistantTicker">
-        <span class="ticker-prefix">VOX-AI</span>
+        <span class="ticker-prefix">AI CO-PILOT</span>
         <span class="ticker-message" id="aiMessage">Ready. Speak your design vision or type below.</span>
       </div>
 
-      <!-- Primary Input Bar -->
+      <!-- Primary Voice / Text Input Bar -->
       <div class="command-bar-wrapper">
         <button id="btnMic" class="mic-toggle-btn" title="Click to Speak or Hold Spacebar">
           <div class="mic-halo"></div>
@@ -188,7 +206,7 @@
           <input 
             type="text" 
             id="commandInput" 
-            placeholder="Speak or type: 'Futuristic hypercar', 'Stealth drone', 'Twisted tower', 'Mounting plate'..." 
+            placeholder="Speak or type: 'Futuristic stealth drone', 'Hypercar', 'Twisted tower', 'Mounting plate'..." 
             autocomplete="off"
           />
           <button type="submit" class="submit-btn" title="Generate 3D Design">
@@ -204,9 +222,9 @@
       <div class="inspiration-pills">
         <span class="pills-label">Inspiration:</span>
         <div class="pills-scroll">
-          <button class="pill-chip" data-cmd="Create a futuristic aerodynamic hypercar chassis">🏎️ Hypercar</button>
-          <button class="pill-chip" data-cmd="Create an orbital deep-space satellite with solar panels">🪐 Satellite</button>
           <button class="pill-chip" data-cmd="Create a futuristic stealth jet drone">🛸 Stealth Drone</button>
+          <button class="pill-chip" data-cmd="Create a futuristic aerodynamic hypercar chassis">🏎️ Hypercar</button>
+          <button class="pill-chip" data-cmd="Create an orbital deep space satellite with solar arrays">🪐 Satellite</button>
           <button class="pill-chip" data-cmd="Design a twisted helical skyscraper tower">🏛️ Twisted Tower</button>
           <button class="pill-chip" data-cmd="Create a sci-fi reactor core with gimbal rings">⚛️ Reactor Core</button>
           <button class="pill-chip" data-cmd="Design a robotic gripper mechanical claw">🦾 Robotic Claw</button>
@@ -223,6 +241,7 @@
       <div class="footer-item">
         <span class="live-pulse"></span>
         <span id="micStateLabel">Microphone Ready (Click or Spacebar)</span>
+        <button id="btnTestMic" class="mic-test-btn" title="Click to test microphone permission">Test Mic</button>
       </div>
       <div class="footer-item desktop-only">
         <span>Mouse: Left-Click Rotate | Right-Click Pan | Scroll Zoom</span>
