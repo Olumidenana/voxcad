@@ -6,6 +6,7 @@ import { CADEngine } from './cad-engine.js';
 import { VoiceEngine } from './voice-engine.js';
 import { IntentParser } from './intent-parser.js';
 import { FeatureTree } from './feature-tree.js';
+import { GeminiSynthesizer } from './gemini-synthesizer.js';
 
 class VoxCADApp {
   constructor() {
@@ -13,6 +14,7 @@ class VoxCADApp {
     this.voiceEngine = null;
     this.intentParser = null;
     this.featureTree = null;
+    this.geminiSynthesizer = null;
 
     this.isAwaitingFollowup = false;
 
@@ -47,13 +49,10 @@ class VoxCADApp {
       notificationBanner: document.getElementById('notificationBanner'),
       notificationText: document.getElementById('notificationText'),
       btnCloseNotification: document.getElementById('btnCloseNotification'),
-      statFaces: document.getElementById('statFaces'),
-      statBounds: document.getElementById('statBounds'),
       selectionChip: document.getElementById('selectionChip'),
       selectedEntityLabel: document.getElementById('selectedEntityLabel'),
       btnDismissSelection: document.getElementById('btnDismissSelection'),
       btnQuickExportSTL: document.getElementById('btnQuickExportSTL'),
-      btnCopyCode: document.getElementById('btnCopyCode'),
       featureTreeList: document.getElementById('featureTreeList'),
       emptyTreeState: document.getElementById('emptyTreeState'),
       btnClearAll: document.getElementById('btnClearAll'),
@@ -62,7 +61,17 @@ class VoxCADApp {
       btnToggleGrid: document.getElementById('btnToggleGrid'),
       btnResetCamera: document.getElementById('btnResetCamera'),
       standbyOverlay: document.getElementById('standbyOverlay'),
-      btnTestMic: document.getElementById('btnTestMic')
+      btnTestMic: document.getElementById('btnTestMic'),
+      btnAiKey: document.getElementById('btnAiKey'),
+      aiStatusDot: document.getElementById('aiStatusDot'),
+      aiBtnLabel: document.getElementById('aiBtnLabel'),
+      aiModal: document.getElementById('aiModal'),
+      btnCloseAiModal: document.getElementById('btnCloseAiModal'),
+      inputApiKey: document.getElementById('inputApiKey'),
+      btnSaveApiKey: document.getElementById('btnSaveApiKey'),
+      btnClearApiKey: document.getElementById('btnClearApiKey'),
+      btnToggleKeyVisibility: document.getElementById('btnToggleKeyVisibility'),
+      aiTestStatus: document.getElementById('aiTestStatus')
     };
 
     this.init();
@@ -74,6 +83,7 @@ class VoxCADApp {
       this.featureTree = new FeatureTree(this.cadEngine);
       this.intentParser = new IntentParser();
       this.voiceEngine = new VoiceEngine();
+      this.geminiSynthesizer = new GeminiSynthesizer(this.cadEngine);
 
       this.setupSubsystems();
       this.setupUI();
@@ -99,9 +109,9 @@ class VoxCADApp {
     };
 
     this.cadEngine.onGeometryUpdated = (stats) => {
-      this.dom.statFaces.textContent = stats.faces.toLocaleString();
-      this.dom.statBounds.textContent = stats.bounds;
-      this.dom.metricFacesVal.textContent = stats.faces.toLocaleString();
+      if (this.dom.metricFacesVal) {
+        this.dom.metricFacesVal.textContent = stats.faces.toLocaleString();
+      }
       this.showStandbyState(stats.faces === 0);
     };
 
@@ -149,11 +159,15 @@ class VoxCADApp {
         } else {
           this.dom.micStateLabel.textContent = 'Listening... Speak your vision now';
         }
-        this.dom.micStateLabel.previousElementSibling.style.background = '#f43f5e';
+        if (this.dom.micStateLabel.previousElementSibling) {
+          this.dom.micStateLabel.previousElementSibling.style.background = '#f43f5e';
+        }
       } else {
         this.dom.btnMic.classList.remove('listening');
         this.dom.micStateLabel.textContent = 'Microphone Ready (Click or Spacebar)';
-        this.dom.micStateLabel.previousElementSibling.style.background = '#10b981';
+        if (this.dom.micStateLabel.previousElementSibling) {
+          this.dom.micStateLabel.previousElementSibling.style.background = '#10b981';
+        }
       }
     };
 
@@ -164,6 +178,28 @@ class VoxCADApp {
     this.featureTree.onTreeUpdated = (features) => {
       this.renderFeatureTree(features);
     };
+  }
+
+  updateAiKeyStatus() {
+    const hasKey = this.geminiSynthesizer.hasApiKey();
+    if (this.dom.aiStatusDot) {
+      this.dom.aiStatusDot.classList.toggle('active', hasKey);
+    }
+    if (this.dom.aiBtnLabel) {
+      this.dom.aiBtnLabel.textContent = hasKey ? '✨ AI Online' : '✨ AI Key';
+    }
+  }
+
+  showAiModalStatus(msg, isSuccess) {
+    if (!this.dom.aiTestStatus) return;
+    this.dom.aiTestStatus.textContent = msg;
+    this.dom.aiTestStatus.className = 'test-status';
+    if (isSuccess === true) {
+      this.dom.aiTestStatus.classList.add('success');
+    } else if (isSuccess === false) {
+      this.dom.aiTestStatus.classList.add('error');
+    }
+    this.dom.aiTestStatus.classList.remove('hidden');
   }
 
   setupUI() {
@@ -228,6 +264,81 @@ class VoxCADApp {
       });
     }
 
+    // AI Key Modal Interactions
+    this.updateAiKeyStatus();
+
+    if (this.dom.btnAiKey) {
+      this.dom.btnAiKey.addEventListener('click', () => {
+        if (this.dom.inputApiKey) {
+          this.dom.inputApiKey.value = this.geminiSynthesizer.apiKey || '';
+        }
+        if (this.dom.aiTestStatus) {
+          this.dom.aiTestStatus.classList.add('hidden');
+        }
+        if (this.dom.aiModal) {
+          this.dom.aiModal.classList.remove('hidden');
+        }
+      });
+    }
+
+    if (this.dom.btnCloseAiModal) {
+      this.dom.btnCloseAiModal.addEventListener('click', () => {
+        this.dom.aiModal.classList.add('hidden');
+      });
+    }
+
+    if (this.dom.aiModal) {
+      this.dom.aiModal.addEventListener('click', (e) => {
+        if (e.target === this.dom.aiModal) {
+          this.dom.aiModal.classList.add('hidden');
+        }
+      });
+    }
+
+    if (this.dom.btnToggleKeyVisibility) {
+      this.dom.btnToggleKeyVisibility.addEventListener('click', () => {
+        const isPwd = this.dom.inputApiKey.type === 'password';
+        this.dom.inputApiKey.type = isPwd ? 'text' : 'password';
+        this.dom.btnToggleKeyVisibility.textContent = isPwd ? '🙈' : '👁️';
+      });
+    }
+
+    if (this.dom.btnSaveApiKey) {
+      this.dom.btnSaveApiKey.addEventListener('click', async () => {
+        const key = (this.dom.inputApiKey.value || '').trim();
+        if (!key) {
+          this.showAiModalStatus('Please enter your Gemini API key.', false);
+          return;
+        }
+
+        this.showAiModalStatus('Connecting to Google AI Studio...', null);
+        try {
+          await this.geminiSynthesizer.testConnection(key);
+          this.geminiSynthesizer.setApiKey(key);
+          this.updateAiKeyStatus();
+          this.showAiModalStatus('✨ Verified! Gemini 3D Engine is online and ready.', true);
+          setTimeout(() => {
+            this.dom.aiModal.classList.add('hidden');
+            this.showNotification('✨ Gemini 3D Engine active! Speak or type any concept to generate.');
+          }, 1200);
+        } catch (err) {
+          this.showAiModalStatus(`Verification failed: ${err.message}`, false);
+        }
+      });
+    }
+
+    if (this.dom.btnClearApiKey) {
+      this.dom.btnClearApiKey.addEventListener('click', () => {
+        this.geminiSynthesizer.setApiKey('');
+        this.dom.inputApiKey.value = '';
+        this.updateAiKeyStatus();
+        this.showAiModalStatus('Key cleared. Offline procedural modeler active.', false);
+        setTimeout(() => {
+          this.dom.aiModal.classList.add('hidden');
+        }, 800);
+      });
+    }
+
     this.dom.commandForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = this.dom.commandInput.value.trim();
@@ -276,8 +387,8 @@ class VoxCADApp {
 
     this.dom.btnToggleGrid.addEventListener('click', () => {
       const active = this.cadEngine.toggleGrid();
-      this.dom.btnToggleGrid.classList.toggle('active', grid);
-      this.updateMessage(grid ? 'Grid floor visible' : 'Grid floor hidden');
+      this.dom.btnToggleGrid.classList.toggle('active', active);
+      this.updateMessage(active ? 'Grid floor visible' : 'Grid floor hidden');
     });
 
     this.dom.btnResetCamera.addEventListener('click', () => {
@@ -287,13 +398,6 @@ class VoxCADApp {
     this.dom.btnQuickExportSTL.addEventListener('click', () => {
       this.cadEngine.exportSTL('voxcad_design.stl');
       this.showNotification('Exported 3D printable STL file!');
-    });
-
-    this.dom.btnCopyCode.addEventListener('click', () => {
-      const code = this.featureTree.generatePythonCADCode();
-      navigator.clipboard.writeText(code).then(() => {
-        this.showNotification('Copied build123d / SolidWorks Python CAD code to clipboard!');
-      });
     });
 
     this.dom.btnDismissSelection.addEventListener('click', () => {
@@ -325,6 +429,10 @@ class VoxCADApp {
         e.preventDefault();
         this.featureTree.undo();
         this.updateMessage('Undid last feature.');
+      }
+
+      if (e.key === 'Escape' && this.dom.aiModal && !this.dom.aiModal.classList.contains('hidden')) {
+        this.dom.aiModal.classList.add('hidden');
       }
     });
 
@@ -365,50 +473,99 @@ class VoxCADApp {
 
     if (!intent) return;
 
-    switch (intent.type) {
-      case 'AMBIGUITY':
-        this.updateMessage(intent.question);
-        this.voiceEngine.speak(intent.question);
-        break;
+    // Direct UI, View, Material, or History commands
+    if (intent.type === 'CAMERA_VIEW') {
+      if (intent.view === 'reset') {
+        this.cadEngine.resetCamera();
+      } else {
+        this.cadEngine.setCameraView(intent.view);
+        document.querySelectorAll('.glass-pill-group .pill-btn[data-view]').forEach(b => {
+          b.classList.toggle('active', b.getAttribute('data-view') === intent.view);
+        });
+      }
+      this.updateMessage(intent.message);
+      return;
+    }
 
-      case 'CREATE_MERCEDES_CAR':
-      case 'CREATE_CAR':
-      case 'CREATE_TIRE':
-      case 'CREATE_WHEEL':
-      case 'CREATE_CIRCLE':
-      case 'CREATE_DISC':
-      case 'CREATE_MUG':
-      case 'CREATE_CUP':
-      case 'CREATE_CHAIR':
-      case 'CREATE_TABLE':
-      case 'CREATE_SMARTPHONE':
-      case 'CREATE_BOLT':
-      case 'CREATE_HYPERCAR':
-      case 'CREATE_SATELLITE':
-      case 'CREATE_STEALTH_DRONE':
-      case 'CREATE_TWISTED_TOWER':
-      case 'CREATE_REACTOR_CORE':
-      case 'CREATE_CYBER_HELMET':
-      case 'CREATE_ROBOTIC_CLAW':
-      case 'CREATE_GEAR':
-      case 'CREATE_PLATE_WITH_HOLE':
-      case 'CREATE_BOX':
-      case 'CREATE_CYLINDER':
-      case 'CREATE_SPHERE':
-      case 'CUT_HOLE':
-      case 'EXTRUDE_FACE':
+    if (intent.type === 'TOGGLE_WIREFRAME') {
+      const wire = this.cadEngine.toggleWireframe();
+      this.dom.btnToggleWireframe.classList.toggle('active', wire);
+      this.updateMessage(wire ? 'Wireframe mode' : 'Solid shaded mode');
+      return;
+    }
+
+    if (intent.type === 'TOGGLE_GRID') {
+      const active = this.cadEngine.toggleGrid();
+      this.dom.btnToggleGrid.classList.toggle('active', active);
+      this.updateMessage(active ? 'Grid floor visible' : 'Grid floor hidden');
+      return;
+    }
+
+    if (intent.type === 'TOGGLE_AUTOROTATE') {
+      const rot = this.cadEngine.toggleAutoRotate();
+      this.dom.btnToggleTurntable.classList.toggle('active', rot);
+      this.updateMessage(rot ? 'Showcase rotation enabled' : 'Rotation paused');
+      return;
+    }
+
+    if (intent.type === 'SET_MATERIAL') {
+      this.cadEngine.setMaterial(intent.material);
+      document.querySelectorAll('.mat-card').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-mat') === intent.material);
+      });
+      const matMsg = `Appearance updated to ${intent.material}.`;
+      this.updateMessage(matMsg);
+      this.voiceEngine.speak(matMsg);
+      return;
+    }
+
+    if (intent.type === 'UNDO') {
+      const undone = this.featureTree.undo();
+      this.updateMessage(undone ? 'Undid last feature.' : 'Nothing to undo.');
+      this.voiceEngine.speak(undone ? 'Undid last feature' : 'Nothing to undo');
+      return;
+    }
+
+    if (intent.type === 'REDO') {
+      const redone = this.featureTree.redo();
+      this.updateMessage(redone ? 'Redid feature.' : 'Nothing to redo.');
+      return;
+    }
+
+    if (intent.type === 'CLEAR_ALL') {
+      this.featureTree.clear();
+      this.showStandbyState(true);
+      this.updateMessage('Canvas reset to blank.');
+      this.voiceEngine.speak('Canvas cleared');
+      return;
+    }
+
+    if (intent.type === 'AMBIGUITY') {
+      this.updateMessage(intent.question);
+      this.voiceEngine.speak(intent.question);
+      return;
+    }
+
+    // -------------------------------------------------------------
+    // GENERATIVE 3D SYNTHESIS: Lingua Franca (Model Anything)
+    // -------------------------------------------------------------
+    // If Gemini API Key is connected, synthesize bespoke 3D geometry dynamically!
+    if (this.geminiSynthesizer.hasApiKey()) {
+      this.updateMessage(`✨ Gemini is synthesizing 3D geometry for "${rawText}"...`);
+      try {
+        const result = await this.geminiSynthesizer.synthesizeConcept(rawText);
         this.featureTree.addOperation({
-          ...intent,
-          description: intent.message
+          type: 'GENAI_DYNAMIC_MODEL',
+          group: result.group,
+          displayTitle: result.title,
+          description: result.summary
         });
 
         this.showStandbyState(false);
         this.cadEngine.clearSelection();
 
-        // Natural, concise voice response (dimensions are on the side panel!)
-        const shortName = intent.type.replace('CREATE_', '').replace(/_/g, ' ').toLowerCase();
-        const voiceText = `Created ${shortName}. Metrics and manual sliders are ready on the side panel. Would you like any adjustments?`;
-        this.updateMessage(intent.message);
+        const voiceText = `Created ${result.title}. Metrics and manual sliders are ready on the side panel. Would you like any adjustments?`;
+        this.updateMessage(result.summary || `Synthesized ${result.title}`);
 
         this.isAwaitingFollowup = true;
         this.voiceEngine.speak(voiceText, () => {
@@ -417,71 +574,85 @@ class VoxCADApp {
             this.updateMessage('Standing by.');
           });
         });
-        break;
-
-      case 'SET_MATERIAL':
-        this.cadEngine.setMaterial(intent.material);
-        document.querySelectorAll('.mat-card').forEach(c => {
-          c.classList.toggle('active', c.getAttribute('data-mat') === intent.material);
-        });
-        const matMsg = `Appearance updated to ${intent.material}.`;
-        this.updateMessage(matMsg);
-        this.voiceEngine.speak(matMsg);
-        break;
-
-      case 'CAMERA_VIEW':
-        if (intent.view === 'reset') {
-          this.cadEngine.resetCamera();
-        } else {
-          this.cadEngine.setCameraView(intent.view);
-          document.querySelectorAll('.glass-pill-group .pill-btn[data-view]').forEach(b => {
-            b.classList.toggle('active', b.getAttribute('data-view') === intent.view);
-          });
-        }
-        this.updateMessage(intent.message);
-        break;
-
-      case 'TOGGLE_WIREFRAME':
-        const wire = this.cadEngine.toggleWireframe();
-        this.dom.btnToggleWireframe.classList.toggle('active', wire);
-        this.updateMessage(wire ? 'Wireframe mode' : 'Solid shaded mode');
-        break;
-
-      case 'TOGGLE_GRID':
-        const grid = this.cadEngine.toggleGrid();
-        this.dom.btnToggleGrid.classList.toggle('active', grid);
-        this.updateMessage(grid ? 'Grid floor visible' : 'Grid floor hidden');
-        break;
-
-      case 'TOGGLE_AUTOROTATE':
-        const rot = this.cadEngine.toggleAutoRotate();
-        this.dom.btnToggleTurntable.classList.toggle('active', rot);
-        this.updateMessage(rot ? 'Showcase rotation enabled' : 'Rotation paused');
-        break;
-
-      case 'UNDO':
-        const undone = this.featureTree.undo();
-        this.updateMessage(undone ? 'Undid last feature.' : 'Nothing to undo.');
-        this.voiceEngine.speak(undone ? 'Undid last feature' : 'Nothing to undo');
-        break;
-
-      case 'REDO':
-        const redone = this.featureTree.redo();
-        this.updateMessage(redone ? 'Redid feature.' : 'Nothing to redo.');
-        break;
-
-      case 'CLEAR_ALL':
-        this.featureTree.clear();
-        this.showStandbyState(true);
-        this.updateMessage('Canvas reset to blank.');
-        this.voiceEngine.speak('Canvas cleared');
-        break;
-
-      default:
-        this.updateMessage(`Processed: "${rawText}"`);
-        break;
+        return;
+      } catch (err) {
+        console.warn('Gemini 3D synthesis error, falling back to procedural engine:', err);
+        this.showNotification(`AI note: ${err.message}. Using offline 3D modeler.`);
+      }
     }
+
+    // Offline Procedural Engine (Handles all anatomy, fine art, automotive, architecture, mechanical, and universal harmonic manifolds)
+    if (intent.type.startsWith('CREATE_') || intent.type.startsWith('CUT_') || intent.type.startsWith('EXTRUDE_')) {
+      this.featureTree.addOperation({
+        ...intent,
+        description: intent.message
+      });
+
+      this.showStandbyState(false);
+      this.cadEngine.clearSelection();
+
+      const displayTitle = intent.displayTitle || intent.type.replace('CREATE_', '').replace(/_/g, ' ').toLowerCase();
+      const voiceText = `Created ${displayTitle}. Metrics and manual sliders are ready on the side panel. Would you like any adjustments?`;
+      this.updateMessage(intent.message || `Created ${displayTitle}`);
+
+      this.isAwaitingFollowup = true;
+      this.voiceEngine.speak(voiceText, () => {
+        this.voiceEngine.startFollowupListening(() => {
+          this.isAwaitingFollowup = false;
+          this.updateMessage('Standing by.');
+        });
+      });
+      return;
+    }
+
+    this.updateMessage(`Processed: "${rawText}"`);
   }
+
+  updateMessage(msg) {
+    this.dom.aiMessage.textContent = msg;
+  }
+
+  showNotification(text) {
+    this.dom.notificationText.textContent = text;
+    this.dom.notificationBanner.classList.remove('hidden');
+    setTimeout(() => {
+      this.dom.notificationBanner.classList.add('hidden');
+    }, 7000);
+  }
+
+  renderFeatureTree(features) {
+    const list = this.dom.featureTreeList;
+    list.innerHTML = '';
+
+    if (!features || features.length === 0) {
+      list.appendChild(this.dom.emptyTreeState);
+      return;
+    }
+
+    features.forEach((feat, index) => {
+      const node = document.createElement('div');
+      node.className = 'feature-node';
+      node.innerHTML = `
+        <div class="feature-node-info">
+          <span class="feature-node-title">#${index + 1} ${feat.displayTitle || feat.type.replace('CREATE_', '').replace(/_/g, ' ')}</span>
+          <span class="feature-node-desc">${feat.description || 'Feature'}</span>
+        </div>
+        <button class="feature-delete-btn" title="Delete" data-id="${feat.id}">×</button>
+      `;
+
+      node.querySelector('.feature-delete-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.featureTree.removeOperation(feat.id);
+      });
+
+      list.appendChild(node);
+    });
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  new VoxCADApp();
+});
 
   updateMessage(msg) {
     this.dom.aiMessage.textContent = msg;
